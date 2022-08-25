@@ -3,6 +3,7 @@
 
  # goot
 </div>
+
 ## What is goot?
 
 goot is a static analysis framework for Go. goot is easy-to-learn, easy-to-use and highly extensible,  allowing you to easily develop new analyses on top of it.
