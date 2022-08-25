@@ -23,7 +23,7 @@ first intall goot by
 go get -u github.com/cokeBeer/goot
 ```
 
-then create two structs implement  `pkg/toolkits/scalar.FlowAnalysis` interface
+then create two structs implementing  `pkg/toolkits/scalar.FlowAnalysis` interface
 
 ```go
 // FlowAnalysis represents a flow analysis
@@ -84,7 +84,7 @@ type AvailableExpressionsFlowAnalysis struct {
 }
 ```
 
-and `golang/switcher.BaseSwitcher`
+and `pkg/golang/switcher.BaseSwitcher`
 
 ```go
 // AvailableExpressionsSwitcher represents an available expressions switcher
