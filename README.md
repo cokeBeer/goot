@@ -165,7 +165,7 @@ b
 
 ## TIPS
 
-- goot's is similar to [soot](https://github.com/soot-oss/soot), so if you wonder how goot's api work, you can [learn soot](https://github.com/soot-oss/soot/wiki/Implementing-an-intra-procedural-data-flow-analysis-in-Soot) first
+- goot's api is similar to [soot](https://github.com/soot-oss/soot), so if you wonder how goot's api work, you can [learn soot](https://github.com/soot-oss/soot/wiki/Implementing-an-intra-procedural-data-flow-analysis-in-Soot) first
 - goot uses `*map[any]any` as flow and `ast.Node` as unit, so please take care of type assertion
 
 ## Thanks
