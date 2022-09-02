@@ -20,7 +20,7 @@ Currently, goot provides the following major analysis components (and more analy
 First intall goot by
 
 ```
-go get -u github.com/cokeBeer/goot/goot
+go get -u github.com/cokeBeer/goot
 ```
 
 then you can run examples in package `cmd`, like `cmd/constantpropagationanalysis`
