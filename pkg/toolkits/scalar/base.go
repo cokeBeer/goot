@@ -1,27 +1,27 @@
 package scalar
 
 import (
-	"go/ast"
+	"math"
 
 	"github.com/cokeBeer/goot/pkg/toolkits/graph"
 	"github.com/cokeBeer/goot/pkg/util/entry"
+	"golang.org/x/tools/go/ssa"
 )
 
-// BaseFlowAnalysis represents a base flow analysis implementation
+// BaseFlowAnalysis represents a base flow analysis implemention
 type BaseFlowAnalysis struct {
-	InitialMap *map[any]any
-	Graph      *graph.NodeGraph
+	Graph *graph.UnitGraph
 }
 
 // NewBase returns a BaseFlowAnalysis
-func NewBase(g *graph.NodeGraph) *BaseFlowAnalysis {
+func NewBase(g *graph.UnitGraph) *BaseFlowAnalysis {
 	BaseFlowAnalysis := new(BaseFlowAnalysis)
 	BaseFlowAnalysis.Graph = g
 	return BaseFlowAnalysis
 }
 
 // GetGraph returns the Graph memeber in a BaseFlowAnalysis
-func (a *BaseFlowAnalysis) GetGraph() *graph.NodeGraph {
+func (a *BaseFlowAnalysis) GetGraph() *graph.UnitGraph {
 	return a.Graph
 }
 
@@ -30,13 +30,13 @@ func (a *BaseFlowAnalysis) IsForward() bool {
 	return true
 }
 
-// GetInitialMap returns the InitialMap member in a BaseFlowAnalysis
-func (a *BaseFlowAnalysis) GetInitialMap() *map[any]any {
-	return a.InitialMap
+// Computations limit number of computations on a flow graph
+func (a *BaseFlowAnalysis) Computations() int {
+	return math.MaxInt
 }
 
-// FlowThrougth calculate outMap based on inMap and node
-func (a *BaseFlowAnalysis) FlowThrougth(inMap *map[any]any, node ast.Node, outMap *map[any]any) {
+// FlowThrougth calculate outMap based on inMap and unit
+func (a *BaseFlowAnalysis) FlowThrougth(inMap *map[any]any, unit ssa.Instruction, outMap *map[any]any) {
 	a.Copy(inMap, outMap)
 }
 
@@ -56,8 +56,8 @@ func (a *BaseFlowAnalysis) Copy(srcMap *map[any]any, dstMap *map[any]any) {
 	}
 }
 
-// MergeInto merge from in to inout based on node
-func (a *BaseFlowAnalysis) MergeInto(node ast.Node, inout *map[any]any, in *map[any]any) {
+// MergeInto merge from in to inout based on unit
+func (a *BaseFlowAnalysis) MergeInto(unit ssa.Instruction, inout *map[any]any, in *map[any]any) {
 	for k, v := range *in {
 		(*inout)[k] = v
 	}

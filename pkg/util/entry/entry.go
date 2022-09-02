@@ -1,12 +1,14 @@
 package entry
 
 import (
-	"go/ast"
 	"math"
+
+	"golang.org/x/tools/go/ssa"
 )
 
+// Entry represents a base unit in a flow graph
 type Entry struct {
-	Data                    ast.Node
+	Data                    ssa.Instruction
 	InFlow                  *map[any]any
 	OutFlow                 *map[any]any
 	In                      []*Entry
@@ -15,7 +17,8 @@ type Entry struct {
 	IsRealStronglyConnected bool
 }
 
-func New(u ast.Node, pred *Entry) *Entry {
+// New creates an Entry
+func New(u ssa.Instruction, pred *Entry) *Entry {
 	entry := new(Entry)
 	entry.In = []*Entry{pred}
 	entry.Data = u

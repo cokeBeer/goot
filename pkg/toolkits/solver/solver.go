@@ -1,7 +1,6 @@
 package solver
 
 import (
-	"go/ast"
 	"log"
 	"math"
 	"reflect"
@@ -12,24 +11,28 @@ import (
 	"github.com/cokeBeer/goot/pkg/util/deque"
 	"github.com/cokeBeer/goot/pkg/util/entry"
 	"github.com/cokeBeer/goot/pkg/util/queue"
+	"github.com/dnote/color"
+	"golang.org/x/tools/go/ssa"
 )
 
 // Solver reprents a flow analysis solver
 type Solver struct {
 	Analysis scalar.FlowAnalysis
+	Debug    bool
 }
 
 // Solve constructs a Solver and call Solver.DoAnalysis
-func Solve(a scalar.FlowAnalysis) {
+func Solve(a scalar.FlowAnalysis, debug bool) {
 	s := new(Solver)
 	s.Analysis = a
+	s.Debug = debug
 	s.DoAnalysis()
 }
 
 // DoAnalysis solve a FlowAnalysis
 func (s *Solver) DoAnalysis() int {
 	a := s.Analysis
-	universe := newUniverse(a.GetGraph(), a.EntryInitalFlow(), a.IsForward())
+	universe := s.newUniverse(a.GetGraph(), a.EntryInitalFlow(), a.IsForward())
 	inFlow := make(map[any]any)
 	outFlow := make(map[any]any)
 	s.initFlow(universe, &inFlow, &outFlow)
@@ -47,7 +50,33 @@ func (s *Solver) DoAnalysis() int {
 				q.Add(o)
 			}
 		}
+		if numComputations > a.Computations() {
+			if s.Debug {
+				color.Set(color.FgYellow)
+				log.Println("has computed more than max computations, skip")
+				color.Unset()
+			}
+			a.End(universe)
+			return numComputations
+		}
 	}
+}
+
+func equal(src map[any]any, dst map[any]any) bool {
+	if len(src) != len(dst) {
+		return false
+	}
+	for k, v := range src {
+		u, ok := (dst)[k]
+		if !ok {
+			return false
+		}
+		same := reflect.DeepEqual(v, u)
+		if !same {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Solver) flowThrougth(d *entry.Entry) bool {
@@ -57,7 +86,7 @@ func (s *Solver) flowThrougth(d *entry.Entry) bool {
 	if d.IsRealStronglyConnected {
 		out := s.Analysis.NewInitalFlow()
 		s.Analysis.FlowThrougth(d.InFlow, d.Data, out)
-		if reflect.DeepEqual(*out, *d.OutFlow) {
+		if equal(*out, *d.OutFlow) {
 			return false
 		}
 		s.Analysis.Copy(out, d.OutFlow)
@@ -94,14 +123,14 @@ func (s *Solver) initFlow(universe []*entry.Entry, in *map[any]any, out *map[any
 	}
 }
 
-func newUniverse(g *graph.NodeGraph, entryFlow *map[any]any, isForward bool) []*entry.Entry {
+func (s *Solver) newUniverse(g *graph.UnitGraph, entryFlow *map[any]any, isForward bool) []*entry.Entry {
 	n := g.Size()
 	universe := make([]*entry.Entry, 0)
-	s := deque.New()
-	visited := make(map[ast.Node]*entry.Entry)
+	q := deque.New()
+	visited := make(map[ssa.Instruction]*entry.Entry)
 	superEntry := entry.New(nil, nil)
-	var entries []ast.Node
-	var actualEntries []ast.Node
+	var entries []ssa.Instruction
+	var actualEntries []ssa.Instruction
 	if isForward {
 		actualEntries = g.Heads
 	} else {
@@ -111,20 +140,24 @@ func newUniverse(g *graph.NodeGraph, entryFlow *map[any]any, isForward bool) []*
 		entries = actualEntries
 	} else {
 		if isForward {
-			log.Fatal("error: no entry point for method in forward analysis")
+			if s.Debug {
+				color.Set(color.FgYellow)
+				log.Println("error: no entry point for method in forward analysis")
+				color.Unset()
+			}
 		} else {
-			entries = make([]ast.Node, 0)
+			entries = make([]ssa.Instruction, 0)
 			head := g.Heads[0]
 			visitedNodes := make(map[any]any)
-			worklist := make([]ast.Node, 0)
+			worklist := make([]ssa.Instruction, 0)
 			worklist = append(worklist, head)
-			var current ast.Node
+			var current ssa.Instruction
 			for len(worklist) != 0 {
 				current = worklist[0]
 				worklist = worklist[1:]
 				visitedNodes[current] = true
 				switch node := current.(type) {
-				case *ast.GoStmt:
+				case *ssa.Jump:
 					entries = append(entries, node)
 				}
 				for _, next := range g.GetSuccs(current) {
@@ -152,8 +185,8 @@ func newUniverse(g *graph.NodeGraph, entryFlow *map[any]any, isForward bool) []*
 			w := v.Out[i]
 			i++
 			if w.Number == math.MinInt {
-				w.Number = s.Len()
-				s.AddLast(w)
+				w.Number = q.Len()
+				q.AddLast(w)
 				if isForward {
 					visitEntry(visited, w, g.GetSuccs(w.Data))
 				} else {
@@ -173,7 +206,7 @@ func newUniverse(g *graph.NodeGraph, entryFlow *map[any]any, isForward bool) []*
 				return universe
 			}
 			universe = append(universe, v)
-			sccPop(s, v)
+			sccPop(q, v)
 			index--
 			v = sv[index]
 			i = si[index]
@@ -181,7 +214,7 @@ func newUniverse(g *graph.NodeGraph, entryFlow *map[any]any, isForward bool) []*
 	}
 }
 
-func visitEntry(visited map[ast.Node]*entry.Entry, v *entry.Entry, out []ast.Node) []*entry.Entry {
+func visitEntry(visited map[ssa.Instruction]*entry.Entry, v *entry.Entry, out []ssa.Instruction) []*entry.Entry {
 	n := len(out)
 	a := make([]*entry.Entry, n)
 	for i := 0; i < n; i++ {
@@ -191,7 +224,7 @@ func visitEntry(visited map[ast.Node]*entry.Entry, v *entry.Entry, out []ast.Nod
 	return a
 }
 
-func getEntryOf(visited map[ast.Node]*entry.Entry, d ast.Node, v *entry.Entry) *entry.Entry {
+func getEntryOf(visited map[ssa.Instruction]*entry.Entry, d ssa.Instruction, v *entry.Entry) *entry.Entry {
 	newEntry := entry.New(d, v)
 	var oldEntry *entry.Entry
 	if _, ok := visited[d]; ok {

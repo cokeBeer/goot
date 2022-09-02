@@ -1,20 +1,20 @@
 package scalar
 
 import (
-	"go/ast"
-
 	"github.com/cokeBeer/goot/pkg/toolkits/graph"
 	"github.com/cokeBeer/goot/pkg/util/entry"
+	"golang.org/x/tools/go/ssa"
 )
 
 // FlowAnalysis represents a flow analysis
 type FlowAnalysis interface {
-	GetGraph() *graph.NodeGraph
+	GetGraph() *graph.UnitGraph
 	IsForward() bool
-	FlowThrougth(inMap *map[any]any, node ast.Node, outMap *map[any]any)
+	Computations() int
+	FlowThrougth(inMap *map[any]any, unit ssa.Instruction, outMap *map[any]any)
 	NewInitalFlow() *map[any]any
 	EntryInitalFlow() *map[any]any
 	Copy(srcMap *map[any]any, dstMap *map[any]any)
-	MergeInto(node ast.Node, inout *map[any]any, in *map[any]any)
+	MergeInto(Unit ssa.Instruction, inout *map[any]any, in *map[any]any)
 	End(universe []*entry.Entry)
 }

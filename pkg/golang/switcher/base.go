@@ -1,85 +1,117 @@
 package switcher
 
-import "go/ast"
+import (
+	"golang.org/x/tools/go/ssa"
+)
 
-// BaseSwitcher represents a base Switcher implementation
+// BaseSwitcher represents a base switcher implemention
 type BaseSwitcher struct {
 }
 
-// CaseBadStmt represents a base CaseBadStmt implementation
-func (b *BaseSwitcher) CaseBadStmt(s *ast.BadStmt) {}
+// CaseAlloc accepts an Alloc instruction
+func (s *BaseSwitcher) CaseAlloc(inst *ssa.Alloc) {}
 
-// CaseIncDecStmt represents a base CaseIncDecStmt implementation
-func (b *BaseSwitcher) CaseIncDecStmt(s *ast.IncDecStmt) {}
+// CasePhi accepts a Phi instruction
+func (s *BaseSwitcher) CasePhi(inst *ssa.Phi) {}
 
-// CaseGoStmt represents a base CaseGoStmt implementation
-func (b *BaseSwitcher) CaseGoStmt(s *ast.GoStmt) {}
+// CaseCall accepts a Call instruction
+func (s *BaseSwitcher) CaseCall(inst *ssa.Call) {}
 
-// CaseDeferStmt represents a base CaseDeferStmt implementation
-func (b *BaseSwitcher) CaseDeferStmt(s *ast.DeferStmt) {}
+// CaseBinOp accepts a BinOp instruction
+func (s *BaseSwitcher) CaseBinOp(inst *ssa.BinOp) {}
 
-// CaseEmptyStmt represents a base CaseEmptyStmt implementation
-func (b *BaseSwitcher) CaseEmptyStmt(s *ast.EmptyStmt) {}
+// CaseUnOp accepts a UnOp instruction
+func (s *BaseSwitcher) CaseUnOp(inst *ssa.UnOp) {}
 
-// CaseAssignStmt represents a base CaseAssignStmt implementation
-func (b *BaseSwitcher) CaseAssignStmt(s *ast.AssignStmt) {}
+// CaseChangeType accepts a ChangeType instruction
+func (s *BaseSwitcher) CaseChangeType(inst *ssa.ChangeType) {}
 
-// CaseExprStmt represents a base CaseExprStmt implementation
-func (b *BaseSwitcher) CaseExprStmt(s *ast.ExprStmt) {}
+// CaseConvert accepts a Convert instruction
+func (s *BaseSwitcher) CaseConvert(inst *ssa.Convert) {}
 
-// CaseReturnStmt represents a base CaseReturnStmt implementation
-func (b *BaseSwitcher) CaseReturnStmt(s *ast.ReturnStmt) {}
+// CaseChangeInterface accepts a ChangeInterface instruction
+func (s *BaseSwitcher) CaseChangeInterface(inst *ssa.ChangeInterface) {}
 
-// CaseValueSpec represents a base CaseValueSpec implementation
-func (b *BaseSwitcher) CaseValueSpec(s *ast.ValueSpec) {}
+// CaseSliceToArrayPointer accepts a SliceToArrayPointer instruction
+func (s *BaseSwitcher) CaseSliceToArrayPointer(inst *ssa.SliceToArrayPointer) {}
 
-// CaseBadExpr represents a base CaseBadExpr implementation
-func (b *BaseSwitcher) CaseBadExpr(s *ast.BadExpr) {}
+// CaseMakeInterface accepts a MakeInterface instruction
+func (s *BaseSwitcher) CaseMakeInterface(inst *ssa.MakeInterface) {}
 
-// CaseIdent represents a base CaseIdent implementation
-func (b *BaseSwitcher) CaseIdent(s *ast.Ident) {}
+// CaseMakeClosure accepts a MakeMakeClosure instruction
+func (s *BaseSwitcher) CaseMakeClosure(inst *ssa.MakeClosure) {}
 
-// CaseEllipsis represents a base CaseEllipsis implementation
-func (b *BaseSwitcher) CaseEllipsis(s *ast.Ellipsis) {}
+// CaseMakeMap accepts a MakeMakeMap instruction
+func (s *BaseSwitcher) CaseMakeMap(inst *ssa.MakeMap) {}
 
-// CaseBasicLit represents a base CaseBasicLit implementation
-func (b *BaseSwitcher) CaseBasicLit(s *ast.BasicLit) {}
+// CaseMakeChan accepts a MakeMakeChan instruction
+func (s *BaseSwitcher) CaseMakeChan(inst *ssa.MakeChan) {}
 
-// CaseFuncLit represents a base CaseFuncLit implementation
-func (b *BaseSwitcher) CaseFuncLit(s *ast.FuncLit) {}
+// CaseMakeSlice accepts a MakeSlice instruction
+func (s *BaseSwitcher) CaseMakeSlice(inst *ssa.MakeSlice) {}
 
-// CaseComposeLit represents a base CaseComposeLit implementation
-func (b *BaseSwitcher) CaseComposeLit(s *ast.CompositeLit) {}
+// CaseSlice accepts a Slice instruction
+func (s *BaseSwitcher) CaseSlice(inst *ssa.Slice) {}
 
-// CaseParentExpr represents a base CaseParentExpr implementation
-func (b *BaseSwitcher) CaseParentExpr(s *ast.ParenExpr) {}
+// CaseFieldAddr accepts a FieldAddr instruction
+func (s *BaseSwitcher) CaseFieldAddr(inst *ssa.FieldAddr) {}
 
-// CaseSelectorExpr represents a base CaseSelectorExpr implementation
-func (b *BaseSwitcher) CaseSelectorExpr(s *ast.SelectorExpr) {}
+// CaseField accepts a Field instruction
+func (s *BaseSwitcher) CaseField(inst *ssa.Field) {}
 
-// CaseIndexExpr represents a base CaseIndexExpr implementation
-func (b *BaseSwitcher) CaseIndexExpr(s *ast.IndexExpr) {}
+// CaseIndexAddr accepts an IndexAddr instruction
+func (s *BaseSwitcher) CaseIndexAddr(inst *ssa.IndexAddr) {}
 
-// CaseIndexListExpr represents a base CaseIndexListExpr implementation
-func (b *BaseSwitcher) CaseIndexListExpr(s *ast.IndexListExpr) {}
+// CaseIndex accepts an Index instruction
+func (s *BaseSwitcher) CaseIndex(inst *ssa.Index) {}
 
-// CaseSliceExpr represents a base CaseSliceExpr implementation
-func (b *BaseSwitcher) CaseSliceExpr(s *ast.SliceExpr) {}
+// CaseLookup accepts a Lookup instruction
+func (s *BaseSwitcher) CaseLookup(inst *ssa.Lookup) {}
 
-// CaseTypeAssertExpr represents a base CaseTypeAssertExpr implementation
-func (b *BaseSwitcher) CaseTypeAssertExpr(s *ast.TypeAssertExpr) {}
+// CaseSelect accepts a Select instruction
+func (s *BaseSwitcher) CaseSelect(inst *ssa.Select) {}
 
-// CaseCallExpr represents a base CaseCallExpr implementation
-func (b *BaseSwitcher) CaseCallExpr(s *ast.CallExpr) {}
+// CaseRange accepts a Range instruction
+func (s *BaseSwitcher) CaseRange(inst *ssa.Range) {}
 
-// CaseStarExpr represents a base CaseStarExpr implementation
-func (b *BaseSwitcher) CaseStarExpr(s *ast.StarExpr) {}
+// CaseNext accepts a Next instruction
+func (s *BaseSwitcher) CaseNext(inst *ssa.Next) {}
 
-// CaseUnaryExpr represents a base CaseUnaryExpr implementation
-func (b *BaseSwitcher) CaseUnaryExpr(s *ast.UnaryExpr) {}
+// CaseTypeAssert accepts a TypeAssert instruction
+func (s *BaseSwitcher) CaseTypeAssert(inst *ssa.TypeAssert) {}
 
-// CaseBinaryExpr represents a base CaseBinaryExpr implementation
-func (b *BaseSwitcher) CaseBinaryExpr(s *ast.BinaryExpr) {}
+// CaseExtract accepts an Extract instruction
+func (s *BaseSwitcher) CaseExtract(inst *ssa.Extract) {}
 
-// CaseKeyValueExpr represents a base CaseKeyValueExpr implementation
-func (b *BaseSwitcher) CaseKeyValueExpr(s *ast.KeyValueExpr) {}
+// CaseJump accepts a Jump instruction
+func (s *BaseSwitcher) CaseJump(inst *ssa.Jump) {}
+
+// CaseIf accepts an If instruction
+func (s *BaseSwitcher) CaseIf(inst *ssa.If) {}
+
+// CaseReturn accepts a Return instruction
+func (s *BaseSwitcher) CaseReturn(inst *ssa.Return) {}
+
+// CaseRunDefers accepts a RunDefers instruction
+func (s *BaseSwitcher) CaseRunDefers(inst *ssa.RunDefers) {}
+
+// CasePanic accepts a Panic instruction
+func (s *BaseSwitcher) CasePanic(inst *ssa.Panic) {}
+
+// CaseGo accepts a Go instruction
+func (s *BaseSwitcher) CaseGo(inst *ssa.Go) {}
+
+// CaseDefer accepts a Defer instruction
+func (s *BaseSwitcher) CaseDefer(inst *ssa.Defer) {}
+
+// CaseSend accepts a Send instruction
+func (s *BaseSwitcher) CaseSend(inst *ssa.Send) {}
+
+// CaseStore accepts a Store instruction
+func (s *BaseSwitcher) CaseStore(inst *ssa.Store) {}
+
+// CaseMapUpdate accepts a MapUpdate instruction
+func (s *BaseSwitcher) CaseMapUpdate(inst *ssa.MapUpdate) {}
+
+// CaseDebugRef accepts a DebugRef instruction
+func (s *BaseSwitcher) CaseDebugRef(inst *ssa.DebugRef) {}
