@@ -113,7 +113,7 @@ type Switcher interface {
 }
 ```
 
-Don't worry for these apis. an easy way to implement them is using compose like `pkg/toolkits/scalar.BaseFlowAnalysis`
+Don't worry for these apis. An easy way to implement them is using compose like `pkg/toolkits/scalar.BaseFlowAnalysis`
 
 ```go
 // ConstantPropagationAnalysis represents a constant propagtion analysis
@@ -135,15 +135,15 @@ type ConstantPropagationSwitcher struct {
 }
 ```
 
-these can make you focus on the core methods you really need to design carefully in specific analyses
+These can make you focus on the core methods you really need to design carefully in specific analyses
 
-some examples can be found in `pkg/example` package
+Some examples can be found in `pkg/example` package
 
-and you can learn **how to run** an analysis from  `cmd` package
+And you can learn **how to run** an analysis from  `cmd` package
 
 ## Presentation
 
-run `cmd/constantpropagationanalysis` on
+Run `cmd/constantpropagationanalysis` on
 
 ```go
 package main
@@ -161,7 +161,7 @@ func Hello(a int, b int) bool {
 	return w
 }
 ```
-you can get
+You can get
 ```
 # Name: constantpropagtionanalysis.Hello
 # Package: constantpropagtionanalysis
