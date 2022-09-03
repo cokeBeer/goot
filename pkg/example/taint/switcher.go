@@ -356,6 +356,10 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 			if f, ok := v.Call.Value.(*ssa.Function); ok {
 				m := f.Signature.Results().At(0).Type().Underlying().(*types.Signature)
 				s.passFuncParamTaint(m, inst)
+			} else if v.Call.Method != nil {
+				// interface
+				m := v.Call.Method
+				s.passInvokeTaint(m, inst)
 			} else {
 				m := v.Call.Value.Type().Underlying().(*types.Signature)
 				s.passFuncParamTaint(m, inst)
