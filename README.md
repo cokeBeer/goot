@@ -81,7 +81,7 @@ I hava generated an output for `fmt` in [cmd/taintanalysis/fmt.json](cmd/taintan
 You can see key `fmt.Sprintf` holds the value `[0,1]`
 ```json
 {
-	 "fmt.Sprintf": [
+    "fmt.Sprintf": [
         [0, 1]
     ]
 }
