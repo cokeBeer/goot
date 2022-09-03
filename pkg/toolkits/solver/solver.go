@@ -53,7 +53,7 @@ func (s *Solver) DoAnalysis() int {
 		if numComputations > a.Computations() {
 			if s.Debug {
 				color.Set(color.FgYellow)
-				log.Println("has computed more than max computations, skip")
+				log.Println("has computed", a.GetGraph().Func.String(), "more than max computations, skip")
 				color.Unset()
 			}
 			a.End(universe)
