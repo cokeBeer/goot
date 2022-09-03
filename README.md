@@ -78,7 +78,7 @@ func main() {
 ```
 Run the code, and you will get a `passthrough.json` in the same directory, which contains taint passthrough information of all functions in your project\
 I hava generated an output for `fmt` in [cmd/taintanalysis/fmt.json](cmd/taintanalysis/fmt.json)\
-You can see key `fmt.Sprintf` holds the value `[0,1]`
+You can see key `fmt.Sprintf` holds the value `[[0,1]]`
 ```json
 {
     "fmt.Sprintf": [
