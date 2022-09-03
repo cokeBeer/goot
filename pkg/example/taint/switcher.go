@@ -157,6 +157,12 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 					m := inst.Call.Method
 					s.passInvokeTaint(m, inst)
 				}
+			default:
+				if inst.Call.Method != nil {
+					// we consider is as a interface
+					m := inst.Call.Method
+					s.passInvokeTaint(m, inst)
+				}
 			}
 		case *ssa.FreeVar:
 			// its inst.X can be a free var
@@ -325,6 +331,18 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 				m := inst.Call.Method
 				s.passInvokeTaint(m, inst)
 			}
+		case *ssa.Call:
+			if inst.Call.Method != nil {
+				// we consider is as a interface
+				m := inst.Call.Method
+				s.passInvokeTaint(m, inst)
+			}
+		default:
+			if inst.Call.Method != nil {
+				// we consider is as a interface
+				m := inst.Call.Method
+				s.passInvokeTaint(m, inst)
+			}
 		}
 	case *ssa.Phi:
 		// caller can be a Phi instruction
@@ -433,6 +451,12 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 			// if we have not saved it, load it now
 			Run(f, c)
 			s.passCallTaint(f, inst)
+		}
+	default:
+		if inst.Call.Method != nil {
+			// we consider is as a interface
+			m := inst.Call.Method
+			s.passInvokeTaint(m, inst)
 		}
 	}
 }
