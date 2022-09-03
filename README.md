@@ -4,6 +4,14 @@
  # goot
 </div>
 
+- [goot](#goot)
+	- [What is goot?](#what-is-goot)
+	- [Get started](#get-started)
+	- [Use passthrough analysis](#use-passthrough-analysis)
+	- [Use as a framework](#use-as-a-framework)
+	- [Presentation](#presentation)
+	- [Tips](#tips)
+	- [Thanks](#thanks)
 ## What is goot?
 
 [goot](https://github.com/cokeBeer/goot) is a static analysis framework for Go. goot is easy-to-learn, easy-to-use and highly extensible, allowing you to easily develop new analyses on top of it.
@@ -12,7 +20,7 @@ Currently, goot provides the following major analysis components (and more analy
 
 - Control/Data-flow analysis framework
   - Control-flow graph construction
-  - Classic data-flow analyses, e.g., constant propagtion analysis
+  - Classic data-flow analyses, e.g., constant propagtion analysis, taint passthrough analysis
   - Your dataflow analyses
 
 ## Get started
@@ -23,7 +31,8 @@ First intall goot by
 go get -u github.com/cokeBeer/goot
 ```
 
-then you can run examples in package `cmd`, like `cmd/constantpropagationanalysis`
+Then you can copy examples from package `cmd` to your project \
+For example, copy `cmd/constantpropagationanalysis`
 ```go
 package main
 
@@ -51,7 +60,36 @@ func main() {
 	runner.Run()
 }
 ```
-## Advance
+Run the code, and you will get a constant propagtion analysis [result](#presentation) output to console
+##  Use passthrough analysis
+Write code below in your project
+```go
+package main
+
+import "github.com/cokeBeer/goot/pkg/example/taint"
+
+func main() {
+	runner := taint.NewRunner("your-module-path")
+	runner.SrcPath = ""
+	runner.DstPath = "passthrough.json"
+	runner.Debug = true
+	runner.Run()
+}
+```
+Run the code, and you will get a `passthrough.json` in the same directory, which contains taint passthrough information of all functions in your project\
+I hava generated an output for `fmt` in [cmd/taintanalysis/fmt.json](cmd/taintanalysis/fmt.json)\
+You can see key `fmt.Sprintf` holds the value `[0,1]`
+```json
+{
+	 "fmt.Sprintf": [
+        [0, 1]
+    ]
+}
+```
+This means the first parameter's taint and the second paramter's taint are passed to the first return value
+
+
+## Use as a framework
 To use goot as a framework,  first create two structs implementing  `pkg/toolkits/scalar.FlowAnalysis` interface
 
 ```go
@@ -79,31 +117,7 @@ type Switcher interface {
 	CaseCall(inst *ssa.Call)
 	CaseBinOp(inst *ssa.BinOp)
 	CaseUnOp(inst *ssa.UnOp)
-	CaseChangeType(inst *ssa.ChangeType)
-	CaseConvert(inst *ssa.Convert)
-	CaseChangeInterface(inst *ssa.ChangeInterface)
-	CaseSliceToArrayPointer(inst *ssa.SliceToArrayPointer)
-	CaseMakeInterface(inst *ssa.MakeInterface)
-	CaseMakeClosure(inst *ssa.MakeClosure)
-	CaseMakeMap(inst *ssa.MakeMap)
-	CaseMakeChan(inst *ssa.MakeChan)
-	CaseMakeSlice(inst *ssa.MakeSlice)
-	CaseSlice(inst *ssa.Slice)
-	CaseFieldAddr(inst *ssa.FieldAddr)
-	CaseField(inst *ssa.Field)
-	CaseIndexAddr(inst *ssa.IndexAddr)
-	CaseIndex(inst *ssa.Index)
-	CaseLookup(inst *ssa.Lookup)
-	CaseSelect(inst *ssa.Select)
-	CaseRange(inst *ssa.Range)
-	CaseNext(inst *ssa.Next)
-	CaseTypeAssert(inst *ssa.TypeAssert)
-	CaseExtract(inst *ssa.Extract)
-	CaseJump(inst *ssa.Jump)
-	CaseIf(inst *ssa.If)
-	CaseReturn(inst *ssa.Return)
-	CaseRunDefers(inst *ssa.RunDefers)
-	CasePanic(inst *ssa.Panic)
+	...
 	CaseGo(inst *ssa.Go)
 	CaseDefer(inst *ssa.Defer)
 	CaseSend(inst *ssa.Send)
@@ -143,25 +157,8 @@ And you can learn **how to run** an analysis from  `cmd` package
 
 ## Presentation
 
-Run `cmd/constantpropagationanalysis` on
-
-```go
-package main
-
-func Hello(a int, b int) bool {
-	a = 1
-	x := a + 3
-	y := b + 2
-	if x > y {
-		x = x + 1
-	} else {
-		x = y + 1
-	}
-	w := x > 0
-	return w
-}
-```
-You can get
+This is the output of `cmd/constantpropagationanalysis`\
+The first part is the ssa and the second part is the constant propagation on ssa
 ```
 # Name: constantpropagtionanalysis.Hello
 # Package: constantpropagtionanalysis
@@ -217,7 +214,7 @@ constant fact for instruction: return t5
 a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 t4=5 t5=NAC t6=UNDEF 
 ```
 
-## TIPS
+## Tips
 
 - goot's api is similar to [soot](https://github.com/soot-oss/soot), so if you wonder how goot's api work, you can [learn soot](https://github.com/soot-oss/soot/wiki/Implementing-an-intra-procedural-data-flow-analysis-in-Soot) first
 - goot uses `*map[any]any` as flow and `ssa.Instruction` as unit, so please be careful of type assertion
@@ -225,3 +222,4 @@ a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 t4=5 t5=NAC t6=UNDEF
 ## Thanks
 
 - [soot](https://github.com/soot-oss/soot)
+- [Tai-e](https://github.com/pascal-lab/Tai-e)
