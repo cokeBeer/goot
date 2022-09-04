@@ -7,6 +7,7 @@ type TaintConfig struct {
 	PassThroughContainer *map[string][][]int
 	InitMap              *map[string]*ssa.Function
 	History              *map[string]bool
+	InterfaceHierarchy   *InterfaceHierarchy
 	Debug                bool
 }
 

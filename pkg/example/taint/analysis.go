@@ -21,6 +21,7 @@ type TaintAnalysis struct {
 	config               *TaintConfig
 	passThroughContainer *map[string][][]int
 	initMap              *map[string]*ssa.Function
+	interfaceHierarchy   *InterfaceHierarchy
 }
 
 // Run kicks off a taint analysis on a function
@@ -74,7 +75,9 @@ func initNull(f *ssa.Function, c *TaintConfig) {
 		passThrough = append(passThrough, make([]int, 0))
 	}
 	(*c.PassThroughContainer)[f.String()] = passThrough
-	fmt.Println("finish analysis for:", f.String(), ", result: ", passThrough)
+	if c.Debug {
+		fmt.Println("finish analysis for:", f.String(), ", result: ", passThrough)
+	}
 }
 
 func needNull(f *ssa.Function, c *TaintConfig) bool {
@@ -101,6 +104,7 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	taintAnalysis.passThroughContainer = c.PassThroughContainer
 	taintAnalysis.initMap = c.InitMap
 	taintAnalysis.passThrough = make([]map[string]bool, 0)
+	taintAnalysis.interfaceHierarchy = c.InterfaceHierarchy
 	f := taintAnalysis.Graph.Func
 
 	// init param taints in passThrough
@@ -201,5 +205,7 @@ func (a *TaintAnalysis) End(universe []*entry.Entry) {
 	}
 	// save passThrough to passThroughContainer
 	(*a.passThroughContainer)[f.String()] = passThrough
-	fmt.Println("end analysis for: "+f.String()+", result: ", passThrough)
+	if a.config.Debug {
+		fmt.Println("finish analysis for: "+f.String()+", result: ", passThrough)
+	}
 }

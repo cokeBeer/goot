@@ -437,21 +437,7 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 		// caller can be a known function
 		// global function, global method and anonymous function in function itself
 		f := v
-		_, ok := (*container)[f.String()]
-		if ok {
-			// if we have saved it, use it directly
-			s.passCallTaint(f, inst)
-		} else if needNull(f, c) {
-			// function is loaded from C file and has no body
-			m, ok := f.Object().(*types.Func)
-			if ok {
-				s.passInvokeTaint(m, inst)
-			}
-		} else {
-			// if we have not saved it, load it now
-			Run(f, c)
-			s.passCallTaint(f, inst)
-		}
+		s.passCallTaint(f, inst)
 	default:
 		if inst.Call.Method != nil {
 			// we consider is as a interface
@@ -1140,9 +1126,24 @@ func (s *TaintSwitcher) CaseUnOp(inst *ssa.UnOp) {
 	}
 }
 
-// passCallTaint handles a "CallToReturn" edge
+// passCallTaint passes taint by *ssa.Function and a call
 func (s *TaintSwitcher) passCallTaint(f *ssa.Function, inst *ssa.Call) {
 	container := s.taintAnalysis.passThroughContainer
+	c := s.taintAnalysis.config
+	_, ok := (*container)[f.String()]
+	if !ok {
+		if needNull(f, c) {
+			// function is loaded from C file and has no body
+			m, ok := f.Object().(*types.Func)
+			if ok {
+				s.passNullTaint(m, inst)
+			}
+			return
+		}
+		// if we can saved it, load it now
+		Run(f, c)
+	}
+
 	passThrough := (*container)[f.String()]
 	n := len(passThrough)
 	// for every results
@@ -1313,6 +1314,135 @@ func (s *TaintSwitcher) passAppendTaint(inst *ssa.Call) {
 // passInvokeTaint passes taint by *types.Func
 // actually, only interfaces use this
 func (s *TaintSwitcher) passInvokeTaint(f *types.Func, inst *ssa.Call) {
+	interfaceHierarchy := s.taintAnalysis.interfaceHierarchy
+	tiface := inst.Call.Value.Type().Underlying().(*types.Interface)
+	methods := interfaceHierarchy.LookupMethods(tiface, f)
+	if len(methods) != 0 {
+		s.passMethodTaint(methods[0], inst)
+	} else {
+		s.passNullTaint(f, inst)
+	}
+}
+
+// passMethodTaint passes taint by *ssa.Function and an invoke
+func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
+	container := s.taintAnalysis.passThroughContainer
+	c := s.taintAnalysis.config
+	_, ok := (*container)[f.String()]
+	if !ok {
+		if needNull(f, c) {
+			// function is loaded from C file and has no body
+			m, ok := f.Object().(*types.Func)
+			if ok {
+				s.passNullTaint(m, inst)
+			}
+			return
+		}
+		// if we can saved it, load it now
+		Run(f, c)
+	}
+
+	passThrough := (*container)[f.String()]
+	n := len(passThrough)
+	for i := 0; i < n; i++ {
+		newTaint := make(map[string]bool)
+		// for every parameter index in passthrough, collect arg's taint
+		for _, p := range passThrough[i] {
+			if p == 0 {
+				// the first arg is inst.Call.Value
+				switch arg := (inst.Call.Value).(type) {
+				case *ssa.Parameter:
+					newTaint[arg.Name()] = true
+				case *ssa.Alloc,
+					*ssa.BinOp,
+					*ssa.Call,
+					*ssa.ChangeType,
+					*ssa.ChangeInterface,
+					*ssa.Convert,
+					*ssa.Extract,
+					*ssa.Field,
+					*ssa.FieldAddr,
+					*ssa.Index,
+					*ssa.IndexAddr,
+					*ssa.Lookup,
+					*ssa.MakeChan,
+					*ssa.MakeInterface,
+					*ssa.MakeMap,
+					*ssa.MakeSlice,
+					*ssa.Next,
+					*ssa.Range,
+					*ssa.Slice,
+					*ssa.TypeAssert,
+					*ssa.UnOp,
+					*ssa.Phi:
+					if _oldTaint, ok := (*s.outMap)[arg.Name()]; ok {
+						oldTaint := _oldTaint.(map[string]bool)
+						for k := range oldTaint {
+							newTaint[k] = true
+						}
+					}
+				}
+			} else {
+				// other args are in inst.Call.Args
+				switch arg := (inst.Call.Args[p-1]).(type) {
+				case *ssa.Parameter:
+					newTaint[arg.Name()] = true
+				case *ssa.Alloc,
+					*ssa.BinOp,
+					*ssa.Call,
+					*ssa.ChangeType,
+					*ssa.ChangeInterface,
+					*ssa.Convert,
+					*ssa.Extract,
+					*ssa.Field,
+					*ssa.FieldAddr,
+					*ssa.Index,
+					*ssa.IndexAddr,
+					*ssa.Lookup,
+					*ssa.MakeChan,
+					*ssa.MakeInterface,
+					*ssa.MakeMap,
+					*ssa.MakeSlice,
+					*ssa.Next,
+					*ssa.Range,
+					*ssa.Slice,
+					*ssa.TypeAssert,
+					*ssa.UnOp,
+					*ssa.Phi:
+					if _oldTaint, ok := (*s.outMap)[arg.Name()]; ok {
+						oldTaint := _oldTaint.(map[string]bool)
+						for k := range oldTaint {
+							newTaint[k] = true
+						}
+					}
+				}
+			}
+		}
+		if i == 0 {
+			// update receiver's taint
+			// the receiver may be a pointer, so update further by the pointer
+			(*s.outMap)[inst.Call.Value.Name()] = newTaint
+			if op, ok := (inst.Call.Value).(*ssa.UnOp); ok {
+				s.passPointTaint(newTaint, op.X)
+			} else {
+				s.passPointTaint(newTaint, inst.Call.Value)
+			}
+		} else {
+			if n == 2 {
+				// if the function has one result
+				(*s.outMap)[inst.Name()] = newTaint
+			} else {
+				// else mark the variables as "inst.Name().X"
+				// e.g. t0.1, t0.2
+				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaint
+			}
+		}
+	}
+}
+
+// passNullTaint passes taint when we can't know a declared function's body or have to inhibit recursive
+// actually no taint will be passed
+func (s *TaintSwitcher) passNullTaint(f *types.Func, inst *ssa.Call) {
 	container := s.taintAnalysis.passThroughContainer
 	signature, ok := f.Type().(*types.Signature)
 	if ok {
@@ -1354,9 +1484,6 @@ func (s *TaintSwitcher) passInvokeTaint(f *types.Func, inst *ssa.Call) {
 // actually, only functions without body use this
 func (s *TaintSwitcher) passFuncParamTaint(signature *types.Signature, inst *ssa.Call) {
 	passThrough := make([][]int, 0)
-	if signature.Recv() != nil {
-		passThrough = append(passThrough, make([]int, 0))
-	}
 	n := signature.Results().Len()
 	for i := 0; i < n; i++ {
 		passThrough = append(passThrough, make([]int, 0))

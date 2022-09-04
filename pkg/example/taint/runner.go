@@ -39,6 +39,10 @@ func (r *Runner) Run() error {
 	prog, _ := ssautil.AllPackages(initial, 0)
 	prog.Build()
 
+	funcs := ssautil.AllFunctions(prog)
+
+	interfaceHierarchy := Build(&funcs)
+
 	passThroughContainter := make(map[string][][]int)
 	if r.SrcPath != "" {
 		Fetch(&passThroughContainter, r.SrcPath)
@@ -47,9 +51,12 @@ func (r *Runner) Run() error {
 	initMap := make(map[string]*ssa.Function)
 	history := make(map[string]bool)
 
-	c := &TaintConfig{PassThroughContainer: &passThroughContainter, InitMap: &initMap, History: &history, Debug: r.Debug}
+	c := &TaintConfig{PassThroughContainer: &passThroughContainter,
+		InitMap:            &initMap,
+		History:            &history,
+		InterfaceHierarchy: interfaceHierarchy,
+		Debug:              r.Debug}
 
-	funcs := ssautil.AllFunctions(prog)
 	for f := range funcs {
 		if f.Name() == "init" {
 			Run(f, c)
