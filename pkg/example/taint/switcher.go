@@ -188,12 +188,6 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 			f, ok := (*init)[x.String()]
 			if ok {
 				// anonymous function that has been declared in source
-				_, ok := (*container)[f.String()]
-				if !ok {
-					// if it is recorded by init but has not been analysed
-					// analyse it first
-					Run(f, c)
-				}
 				s.passCallTaint(f, inst)
 			} else if inst.Call.Method != nil {
 				// a global anonymous interface created by function return
@@ -371,17 +365,8 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 		// caller can be a Call instruction
 		if inst.Call.Method == nil {
 			// if it is a function, its signature information is in inst.Call.Value
-			if f, ok := v.Call.Value.(*ssa.Function); ok {
-				m := f.Signature.Results().At(0).Type().Underlying().(*types.Signature)
-				s.passFuncParamTaint(m, inst)
-			} else if v.Call.Method != nil {
-				// interface
-				m := v.Call.Method
-				s.passInvokeTaint(m, inst)
-			} else {
-				m := v.Call.Value.Type().Underlying().(*types.Signature)
-				s.passFuncParamTaint(m, inst)
-			}
+			m := v.Type().Underlying().(*types.Signature)
+			s.passFuncParamTaint(m, inst)
 		} else {
 			// interface
 			m := inst.Call.Method
