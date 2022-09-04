@@ -4,6 +4,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // Imethod represents an interface method I.m.
@@ -14,13 +15,14 @@ type Imethod struct {
 	id string
 }
 
-// InterfaceHierarchy represents implementation relations
+// InterfaceHierarchy represents implemetation relations
 type InterfaceHierarchy struct {
+	funcsBySig    *typeutil.Map
 	methodsMemo   *map[Imethod][]*ssa.Function
 	methodsByName *map[string][]*ssa.Function
 }
 
-// LookupMethods returns an interface method's implementations
+// LookupMethods returns an interface method's implemetations
 func (i *InterfaceHierarchy) LookupMethods(I *types.Interface, m *types.Func) []*ssa.Function {
 	id := m.Id()
 	methods, ok := (*i.methodsMemo)[Imethod{I, id}]
@@ -36,8 +38,22 @@ func (i *InterfaceHierarchy) LookupMethods(I *types.Interface, m *types.Func) []
 	return methods
 }
 
+// LookupFuncs returns
+func (i *InterfaceHierarchy) LookupFuncs(signature *types.Signature) []*ssa.Function {
+	funcs := i.funcsBySig.At(signature)
+	if funcs == nil {
+		return nil
+	}
+	return funcs.([]*ssa.Function)
+}
+
 // Build returns an InterfaceHierarchy
 func Build(allFuncs *map[*ssa.Function]bool) *InterfaceHierarchy {
+
+	// funcsBySig contains all functions, keyed by signature.  It is
+	// the effective set of address-taken functions used to resolve
+	// a dynamic call of a particular signature.
+	var funcsBySig typeutil.Map // value is []*ssa.Function
 
 	// methodsByName contains all methods,
 	// grouped by name for efficient lookup.
@@ -55,9 +71,19 @@ func Build(allFuncs *map[*ssa.Function]bool) *InterfaceHierarchy {
 	methodsMemo := make(map[Imethod][]*ssa.Function)
 
 	for f := range *allFuncs {
-		if f.Signature.Recv() != nil {
-			methodsByName[f.Name()] = append(methodsByName[f.Name()], f)
+		if f.Signature.Recv() == nil {
+			if f.Signature.Recv() == nil {
+				// Package initializers can never be address-taken.
+				if f.Name() == "init" && f.Synthetic == "package initializer" {
+					continue
+				}
+				funcs, _ := funcsBySig.At(f.Signature).([]*ssa.Function)
+				funcs = append(funcs, f)
+				funcsBySig.Set(f.Signature, funcs)
+			} else {
+				methodsByName[f.Name()] = append(methodsByName[f.Name()], f)
+			}
 		}
 	}
-	return &InterfaceHierarchy{methodsMemo: &methodsMemo, methodsByName: &methodsByName}
+	return &InterfaceHierarchy{funcsBySig: &funcsBySig, methodsMemo: &methodsMemo, methodsByName: &methodsByName}
 }

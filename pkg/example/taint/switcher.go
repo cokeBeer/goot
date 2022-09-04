@@ -1468,6 +1468,12 @@ func (s *TaintSwitcher) passNullTaint(f *types.Func, inst *ssa.Call) {
 // passFuncParamTaint passes taint by *types.Signature
 // actually, only functions without body use this
 func (s *TaintSwitcher) passFuncParamTaint(signature *types.Signature, inst *ssa.Call) {
+	interfaceHierarchy := s.taintAnalysis.interfaceHierarchy
+	funcs := interfaceHierarchy.LookupFuncs(signature)
+	if len(funcs) != 0 {
+		s.passCallTaint(funcs[0], inst)
+		return
+	}
 	passThrough := make([][]int, 0)
 	n := signature.Results().Len()
 	for i := 0; i < n; i++ {

@@ -138,19 +138,19 @@
         [0, 1, 3]
     ],
     "(*fmt.pp).fmtInteger": [
-        [0, 1]
+        [0, 1, 3]
     ],
     "(*fmt.pp).fmtPointer": [
         [0, 1]
     ],
     "(*fmt.pp).fmtString": [
-        [0, 1, 2]
+        [0, 1]
     ],
     "(*fmt.pp).free": [
         [0]
     ],
     "(*fmt.pp).handleMethods": [
-        [0, 1],
+        [0],
         []
     ],
     "(*fmt.pp).missingArg": [
@@ -2093,11 +2093,11 @@
     ],
     "(*reflect.funcType).Method": [
         [0],
-        [1]
+        [0, 1]
     ],
     "(*reflect.funcType).MethodByName": [
         [0],
-        [],
+        [0],
         []
     ],
     "(*reflect.funcType).Name": [
@@ -2306,11 +2306,11 @@
     ],
     "(*reflect.ptrType).Method": [
         [0],
-        [1]
+        [0, 1]
     ],
     "(*reflect.ptrType).MethodByName": [
         [0],
-        [],
+        [0],
         []
     ],
     "(*reflect.ptrType).Name": [
@@ -2465,11 +2465,11 @@
     ],
     "(*reflect.rtype).Method": [
         [0],
-        [1]
+        [0, 1]
     ],
     "(*reflect.rtype).MethodByName": [
         [0],
-        [],
+        [0],
         []
     ],
     "(*reflect.rtype).Name": [
@@ -2635,11 +2635,11 @@
     ],
     "(*reflect.structType).Method": [
         [0],
-        [1]
+        [0, 1]
     ],
     "(*reflect.structType).MethodByName": [
         [0],
-        [],
+        [0],
         []
     ],
     "(*reflect.structType).Name": [
@@ -3710,7 +3710,7 @@
         [1, 2]
     ],
     "(*runtime.pageAlloc).sysGrow$3": [
-        []
+        [1]
     ],
     "(*runtime.pageAlloc).sysInit": [
         [0]
@@ -6809,14 +6809,7 @@
     "func (*fmt.pp).badVerb(verb rune)": [
         []
     ],
-    "func (*fmt.pp).fmtString(v string, verb rune)": [
-        []
-    ],
-    "func (*fmt.pp).handleMethods(verb rune) (handled bool)": [
-        [],
-        []
-    ],
-    "func (*fmt.pp).printArg(arg any, verb rune)": [
+    "func (*fmt.pp).fmtInteger(v uint64, isSigned bool, verb rune)": [
         []
     ],
     "func (*fmt.pp).printValue(value reflect.Value, verb rune, depth int)": [
@@ -7152,6 +7145,9 @@
     ],
     "func internal/poll.runtime_Semacquire(sema *uint32)": [],
     "func internal/poll.runtime_Semrelease(sema *uint32)": [],
+    "func internal/poll.runtime_isPollServerDescriptor(fd uintptr) bool": [
+        []
+    ],
     "func internal/poll.runtime_pollClose(ctx uintptr)": [],
     "func internal/poll.runtime_pollOpen(fd uintptr) (uintptr, int)": [
         [],
@@ -7160,16 +7156,11 @@
     "func internal/poll.runtime_pollReset(ctx uintptr, mode int) int": [
         []
     ],
-    "func internal/poll.runtime_pollSetDeadline(ctx uintptr, d int64, mode int)": [],
     "func internal/poll.runtime_pollUnblock(ctx uintptr)": [],
     "func internal/poll.runtime_pollWait(ctx uintptr, mode int) int": [
         []
     ],
     "func internal/poll.runtime_pollWaitCanceled(ctx uintptr, mode int) int": [
-        []
-    ],
-    "func internal/poll.writev(fd int, iovecs []syscall.Iovec) (uintptr, error)": [
-        [],
         []
     ],
     "func internal/reflectlite.chanlen(unsafe.Pointer) int": [
@@ -7178,6 +7169,7 @@
     "func internal/reflectlite.haveIdenticalUnderlyingType(T *internal/reflectlite.rtype, V *internal/reflectlite.rtype, cmpTags bool) bool": [
         []
     ],
+    "func internal/reflectlite.ifaceE2I(t *internal/reflectlite.rtype, src any, dst unsafe.Pointer)": [],
     "func internal/reflectlite.maplen(unsafe.Pointer) int": [
         []
     ],
@@ -7195,7 +7187,13 @@
         [],
         []
     ],
-    "func internal/syscall/unix.SendtoInet4(fd int, p []byte, flags int, to *syscall.SockaddrInet4) (err error)": [
+    "func internal/syscall/unix.RecvmsgInet6(fd int, p []byte, oob []byte, flags int, from *syscall.SockaddrInet6) (n int, oobn int, recvflags int, err error)": [
+        [],
+        [],
+        [],
+        []
+    ],
+    "func internal/syscall/unix.SendtoInet6(fd int, p []byte, flags int, to *syscall.SockaddrInet6) (err error)": [
         []
     ],
     "func internal/syscall/unix.fcntl(fd int, cmd int, arg int) (int, error)": [
@@ -7219,7 +7217,7 @@
         [],
         []
     ],
-    "func math.archCeil(x float64) float64": [
+    "func math.Pow(x float64, y float64) float64": [
         []
     ],
     "func math.archExp(x float64) float64": [
@@ -7228,13 +7226,19 @@
     "func math.archFloor(x float64) float64": [
         []
     ],
+    "func math.archHypot(p float64, q float64) float64": [
+        []
+    ],
     "func math.archLog(x float64) float64": [
+        []
+    ],
+    "func math.archMax(x float64, y float64) float64": [
         []
     ],
     "func math.archSqrt(x float64) float64": [
         []
     ],
-    "func math.pow(x float64, y float64) float64": [
+    "func math.archTrunc(x float64) float64": [
         []
     ],
     "func os.MkdirAll(path string, perm io/fs.FileMode) error": [
@@ -7268,7 +7272,6 @@
     "func reflect.chancap(ch unsafe.Pointer) int": [
         []
     ],
-    "func reflect.chanclose(ch unsafe.Pointer)": [],
     "func reflect.chanlen(ch unsafe.Pointer) int": [
         []
     ],
@@ -7285,7 +7288,7 @@
     "func reflect.hashMightPanic(t *reflect.rtype) bool": [
         []
     ],
-    "func reflect.haveIdenticalUnderlyingType(T *reflect.rtype, V *reflect.rtype, cmpTags bool) bool": [
+    "func reflect.haveIdenticalType(T reflect.Type, V reflect.Type, cmpTags bool) bool": [
         []
     ],
     "func reflect.ifaceE2I(t *reflect.rtype, src any, dst unsafe.Pointer)": [],
@@ -7295,19 +7298,12 @@
     "func reflect.makechan(typ *reflect.rtype, size int) (ch unsafe.Pointer)": [
         []
     ],
-    "func reflect.makemap(t *reflect.rtype, cap int) (m unsafe.Pointer)": [
-        []
-    ],
     "func reflect.mapaccess(t *reflect.rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)": [
         []
     ],
     "func reflect.mapaccess_faststr(t *reflect.rtype, m unsafe.Pointer, key string) (val unsafe.Pointer)": [
         []
     ],
-    "func reflect.mapassign(t *reflect.rtype, m unsafe.Pointer, key unsafe.Pointer, val unsafe.Pointer)": [],
-    "func reflect.mapassign_faststr(t *reflect.rtype, m unsafe.Pointer, key string, val unsafe.Pointer)": [],
-    "func reflect.mapdelete(t *reflect.rtype, m unsafe.Pointer, key unsafe.Pointer)": [],
-    "func reflect.mapdelete_faststr(t *reflect.rtype, m unsafe.Pointer, key string)": [],
     "func reflect.mapiterelem(it *reflect.hiter) (elem unsafe.Pointer)": [
         []
     ],
@@ -7368,29 +7364,38 @@
     ],
     "func runtime.cgoCheckArg(t *runtime._type, p unsafe.Pointer, indir bool, top bool, msg string)": [],
     "func runtime.cgoCheckUsingType(typ *runtime._type, src unsafe.Pointer, off uintptr, size uintptr)": [],
+    "func runtime.checkASM() bool": [
+        []
+    ],
     "func runtime.cputicks() int64": [
         []
     ],
     "func runtime.doInit(t *runtime.initTask)": [],
+    "func runtime.gcWriteBarrierBX()": [],
     "func runtime.getcallerpc() uintptr": [
         []
     ],
     "func runtime.getcallersp() uintptr": [
         []
     ],
+    "func runtime.getclosureptr() uintptr": [
+        []
+    ],
     "func runtime.getg() *runtime.g": [
         []
     ],
     "func runtime.gogo(buf *runtime.gobuf)": [],
-    "func runtime.interhash(p unsafe.Pointer, h uintptr) uintptr": [
-        []
-    ],
+    "func runtime.itabAdd(m *runtime.itab)": [],
+    "func runtime.main_main()": [],
     "func runtime.mcall(fn func(*runtime.g))": [],
     "func runtime.memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)": [],
     "func runtime.memequal(a unsafe.Pointer, b unsafe.Pointer, size uintptr) bool": [
         []
     ],
     "func runtime.memhash(p unsafe.Pointer, h uintptr, s uintptr) uintptr": [
+        []
+    ],
+    "func runtime.memhash32(p unsafe.Pointer, h uintptr) uintptr": [
         []
     ],
     "func runtime.memhash64(p unsafe.Pointer, h uintptr) uintptr": [
@@ -7402,6 +7407,12 @@
     "func runtime.publicationBarrier()": [],
     "func runtime.reflectcall(stackArgsType *runtime._type, fn unsafe.Pointer, stackArgs unsafe.Pointer, stackArgsSize uint32, stackRetOffset uint32, frameSize uint32, regArgs *internal/abi.RegArgs)": [],
     "func runtime.return0()": [],
+    "func runtime.setg(gg *runtime.g)": [],
+    "func runtime.sigfwd(fn uintptr, sig uint32, info *runtime.siginfo, ctx unsafe.Pointer)": [],
+    "func runtime.strhash(p unsafe.Pointer, h uintptr) uintptr": [
+        []
+    ],
+    "func runtime.sync_atomic_StoreUintptr(ptr *uintptr, new uintptr)": [],
     "func runtime.systemstack(fn func())": [],
     "func runtime.typehash(t *runtime._type, p unsafe.Pointer, h uintptr) uintptr": [
         []
@@ -7451,7 +7462,6 @@
     "func runtime/internal/atomic.Store8(ptr *uint8, val uint8)": [],
     "func runtime/internal/atomic.StoreRel(ptr *uint32, val uint32)": [],
     "func runtime/internal/atomic.StoreRel64(ptr *uint64, val uint64)": [],
-    "func runtime/internal/atomic.StoreReluintptr(ptr *uintptr, val uintptr)": [],
     "func runtime/internal/atomic.Storeint32(ptr *int32, new int32)": [],
     "func runtime/internal/atomic.Storeint64(ptr *int64, new int64)": [],
     "func runtime/internal/atomic.StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)": [],
@@ -7475,9 +7485,6 @@
         []
     ],
     "func runtime/internal/atomic.Xchgint32(ptr *int32, new int32) int32": [
-        []
-    ],
-    "func runtime/internal/atomic.Xchgint64(ptr *int64, new int64) int64": [
         []
     ],
     "func runtime/internal/atomic.Xchguintptr(ptr *uintptr, new uintptr) uintptr": [
@@ -7505,12 +7512,7 @@
     "func sync.runtime_nanotime() int64": [
         []
     ],
-    "func sync.runtime_notifyListAdd(l *sync.notifyList) uint32": [
-        []
-    ],
     "func sync.runtime_notifyListCheck(size uintptr)": [],
-    "func sync.runtime_notifyListNotifyAll(l *sync.notifyList)": [],
-    "func sync.runtime_notifyListNotifyOne(l *sync.notifyList)": [],
     "func sync.runtime_notifyListWait(l *sync.notifyList, t uint32)": [],
     "func sync.runtime_procPin() int": [
         []
@@ -7531,9 +7533,6 @@
         []
     ],
     "func sync/atomic.CompareAndSwapUint64(addr *uint64, old uint64, new uint64) (swapped bool)": [
-        []
-    ],
-    "func sync/atomic.CompareAndSwapUintptr(addr *uintptr, old uintptr, new uintptr) (swapped bool)": [
         []
     ],
     "func sync/atomic.LoadInt32(addr *int32) (val int32)": [
@@ -7561,9 +7560,6 @@
     "func sync/atomic.runtime_procPin()": [],
     "func sync/atomic.runtime_procUnpin()": [],
     "func syscall.Exit(code int)": [],
-    "func syscall.Getpagesize() int": [
-        []
-    ],
     "func syscall.RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno)": [
         [],
         [],
@@ -7574,17 +7570,13 @@
         [],
         []
     ],
-    "func syscall.rawSyscall6(fn uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno)": [
-        [],
-        [],
-        []
-    ],
-    "func syscall.runtime_AfterExec()": [],
     "func syscall.runtime_AfterFork()": [],
+    "func syscall.runtime_AfterForkInChild()": [],
+    "func syscall.runtime_BeforeExec()": [],
+    "func syscall.runtime_BeforeFork()": [],
     "func syscall.runtime_envs() []string": [
         []
     ],
-    "func syscall.setenv_c(k string, v string)": [],
     "func syscall.syscall(fn uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno)": [
         [],
         [],
@@ -7595,7 +7587,7 @@
         [],
         []
     ],
-    "func syscall.syscallPtr(fn uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno)": [
+    "func syscall.syscall6X(fn uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err syscall.Errno)": [
         [],
         [],
         []
@@ -7606,18 +7598,7 @@
         []
     ],
     "func syscall.unsetenv_c(k string)": [],
-    "func time.now() (sec int64, nsec int32, mono int64)": [
-        [],
-        [],
-        []
-    ],
-    "func time.resetTimer(*time.runtimeTimer, int64) bool": [
-        []
-    ],
     "func time.runtimeNano() int64": [
-        []
-    ],
-    "func time.stopTimer(*time.runtimeTimer) bool": [
         []
     ],
     "internal/abi.FuncPCABI0": [
@@ -8284,7 +8265,7 @@
         [0, 1]
     ],
     "math.Pow": [
-        []
+        [0, 1]
     ],
     "math.Pow10": [
         []
@@ -9269,7 +9250,7 @@
         [0, 1]
     ],
     "reflect.FuncOf": [
-        []
+        [0, 1]
     ],
     "reflect.FuncOf$1": [
         [0]
@@ -9478,7 +9459,7 @@
         [0]
     ],
     "reflect.directlyAssignable": [
-        [0, 1]
+        []
     ],
     "reflect.dumpPtrBitMap": [],
     "reflect.emitGCMask": [],
@@ -9514,7 +9495,7 @@
         [0, 1]
     ],
     "reflect.haveIdenticalUnderlyingType": [
-        [0, 1]
+        []
     ],
     "reflect.ifaceE2I": [],
     "reflect.ifaceIndir": [
@@ -11140,61 +11121,61 @@
     ],
     "runtime.mallocinit": [],
     "runtime.mapaccess1": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapaccess1_fast32": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapaccess1_fast64": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapaccess1_faststr": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapaccess1_fat": [
-        [0, 1, 3]
+        [0, 1, 2, 3]
     ],
     "runtime.mapaccess2": [
-        [0, 1],
+        [0, 1, 2],
         []
     ],
     "runtime.mapaccess2_fast32": [
-        [0, 1],
+        [0, 1, 2],
         []
     ],
     "runtime.mapaccess2_fast64": [
-        [0, 1],
+        [0, 1, 2],
         []
     ],
     "runtime.mapaccess2_faststr": [
-        [0, 1],
+        [0, 1, 2],
         []
     ],
     "runtime.mapaccess2_fat": [
-        [0, 1, 3],
+        [0, 1, 2, 3],
         []
     ],
     "runtime.mapaccessK": [
-        [0, 1],
-        [0, 1]
+        [0, 1, 2],
+        [0, 1, 2]
     ],
     "runtime.mapassign": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapassign_fast32": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapassign_fast32ptr": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapassign_fast64": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapassign_fast64ptr": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapassign_faststr": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.mapclear": [],
     "runtime.mapdelete": [],
@@ -11867,10 +11848,10 @@
         [0]
     ],
     "runtime.reflect_mapaccess": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.reflect_mapaccess_faststr": [
-        [0, 1]
+        [0, 1, 2]
     ],
     "runtime.reflect_mapassign": [],
     "runtime.reflect_mapassign_faststr": [],
