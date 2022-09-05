@@ -47,8 +47,8 @@ func (i *InterfaceHierarchy) LookupFuncs(signature *types.Signature) []*ssa.Func
 	return funcs.([]*ssa.Function)
 }
 
-// Build returns an InterfaceHierarchy
-func Build(allFuncs *map[*ssa.Function]bool) *InterfaceHierarchy {
+// NewInterfaceHierarchy returns an InterfaceHierarchy
+func NewInterfaceHierarchy(allFuncs *map[*ssa.Function]bool) *InterfaceHierarchy {
 
 	// funcsBySig contains all functions, keyed by signature.  It is
 	// the effective set of address-taken functions used to resolve
@@ -72,17 +72,15 @@ func Build(allFuncs *map[*ssa.Function]bool) *InterfaceHierarchy {
 
 	for f := range *allFuncs {
 		if f.Signature.Recv() == nil {
-			if f.Signature.Recv() == nil {
-				// Package initializers can never be address-taken.
-				if f.Name() == "init" && f.Synthetic == "package initializer" {
-					continue
-				}
-				funcs, _ := funcsBySig.At(f.Signature).([]*ssa.Function)
-				funcs = append(funcs, f)
-				funcsBySig.Set(f.Signature, funcs)
-			} else {
-				methodsByName[f.Name()] = append(methodsByName[f.Name()], f)
+			// Package initializers can never be address-taken.
+			if f.Name() == "init" && f.Synthetic == "package initializer" {
+				continue
 			}
+			funcs, _ := funcsBySig.At(f.Signature).([]*ssa.Function)
+			funcs = append(funcs, f)
+			funcsBySig.Set(f.Signature, funcs)
+		} else {
+			methodsByName[f.Name()] = append(methodsByName[f.Name()], f)
 		}
 	}
 	return &InterfaceHierarchy{funcsBySig: &funcsBySig, methodsMemo: &methodsMemo, methodsByName: &methodsByName}

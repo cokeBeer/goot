@@ -74,3 +74,12 @@ __debug_bin
 ######################
 .sass-cache/*
 node_modules/
+
+# BIG JSON #
+######################
+gostd.json
+init.json
+
+# BENCH FILE #
+######################
+pkg/bench

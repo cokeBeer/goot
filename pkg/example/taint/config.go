@@ -1,6 +1,9 @@
 package taint
 
-import "golang.org/x/tools/go/ssa"
+import (
+	"github.com/cokeBeer/goot/pkg/example/taint/rule"
+	"golang.org/x/tools/go/ssa"
+)
 
 // TaintConfig represents a configuration for taint analysis
 type TaintConfig struct {
@@ -8,6 +11,9 @@ type TaintConfig struct {
 	InitMap              *map[string]*ssa.Function
 	History              *map[string]bool
 	InterfaceHierarchy   *InterfaceHierarchy
+	CallGraph            *CallGraph
+	Ruler                rule.Ruler
+	PassThroughOnly      bool
 	Debug                bool
 }
 

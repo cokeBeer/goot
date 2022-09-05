@@ -1,6 +1,7 @@
 package taint
 
 import (
+	"github.com/cokeBeer/goot/pkg/example/taint/rule"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -8,15 +9,23 @@ import (
 
 // Runner represents a analysis runner
 type Runner struct {
-	PkgPath []string
-	Debug   bool
-	SrcPath string
-	DstPath string
+	ModuleName         string
+	PkgPath            []string
+	Debug              bool
+	InitOnly           bool
+	PassThroughOnly    bool
+	PassThroughSrcPath string
+	PassThroughDstPath string
+	CallGraphDstPath   string
+	Ruler              rule.Ruler
 }
 
 // NewRunner returns a *taint.Runner
 func NewRunner(PkgPath ...string) *Runner {
-	return &Runner{PkgPath: PkgPath, SrcPath: "", DstPath: "", Debug: false}
+	return &Runner{PkgPath: PkgPath, ModuleName: "",
+		PassThroughSrcPath: "", PassThroughDstPath: "",
+		CallGraphDstPath: "", Ruler: nil,
+		Debug: false, InitOnly: false, PassThroughOnly: false}
 }
 
 // Run kick off an analysis
@@ -41,11 +50,18 @@ func (r *Runner) Run() error {
 
 	funcs := ssautil.AllFunctions(prog)
 
-	interfaceHierarchy := Build(&funcs)
+	interfaceHierarchy := NewInterfaceHierarchy(&funcs)
+	var ruler rule.Ruler
+	if r.Ruler != nil {
+		ruler = r.Ruler
+	} else {
+		ruler = &DummyRuler{*rule.New(r.ModuleName)}
+	}
+	callGraph := NewCallGraph(&funcs, ruler)
 
 	passThroughContainter := make(map[string][][]int)
-	if r.SrcPath != "" {
-		Fetch(&passThroughContainter, r.SrcPath)
+	if r.PassThroughSrcPath != "" {
+		FetchPassThrough(&passThroughContainter, r.PassThroughSrcPath)
 	}
 
 	initMap := make(map[string]*ssa.Function)
@@ -55,6 +71,9 @@ func (r *Runner) Run() error {
 		InitMap:            &initMap,
 		History:            &history,
 		InterfaceHierarchy: interfaceHierarchy,
+		CallGraph:          callGraph,
+		Ruler:              ruler,
+		PassThroughOnly:    r.PassThroughOnly,
 		Debug:              r.Debug}
 
 	for f := range funcs {
@@ -63,14 +82,19 @@ func (r *Runner) Run() error {
 		}
 	}
 
-	for f := range funcs {
-		if f.String() != "init" {
-			Run(f, c)
+	if !r.InitOnly {
+		for f := range funcs {
+			if f.String() != "init" {
+				Run(f, c)
+			}
 		}
 	}
 
-	if r.DstPath != "" {
-		Persist(&passThroughContainter, r.DstPath)
+	if r.PassThroughDstPath != "" {
+		PersistPassThrough(&passThroughContainter, r.PassThroughDstPath)
+	}
+	if r.CallGraphDstPath != "" {
+		PersistCallGraph(callGraph.Edges, r.CallGraphDstPath)
 	}
 
 	return nil

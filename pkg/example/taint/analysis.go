@@ -5,6 +5,7 @@ import (
 	"go/types"
 	"os"
 
+	"github.com/cokeBeer/goot/pkg/example/taint/rule"
 	"github.com/cokeBeer/goot/pkg/golang/switcher"
 	"github.com/cokeBeer/goot/pkg/toolkits/graph"
 	"github.com/cokeBeer/goot/pkg/toolkits/scalar"
@@ -22,6 +23,8 @@ type TaintAnalysis struct {
 	passThroughContainer *map[string][][]int
 	initMap              *map[string]*ssa.Function
 	interfaceHierarchy   *InterfaceHierarchy
+	callGraph            *CallGraph
+	ruler                rule.Ruler
 }
 
 // Run kicks off a taint analysis on a function
@@ -75,9 +78,7 @@ func initNull(f *ssa.Function, c *TaintConfig) {
 		passThrough = append(passThrough, make([]int, 0))
 	}
 	(*c.PassThroughContainer)[f.String()] = passThrough
-	if c.Debug {
-		fmt.Println("finish analysis for:", f.String(), ", result: ", passThrough)
-	}
+	fmt.Println("finish analysis for:", f.String(), ", result: ", passThrough)
 }
 
 func needNull(f *ssa.Function, c *TaintConfig) bool {
@@ -105,6 +106,8 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	taintAnalysis.initMap = c.InitMap
 	taintAnalysis.passThrough = make([]map[string]bool, 0)
 	taintAnalysis.interfaceHierarchy = c.InterfaceHierarchy
+	taintAnalysis.callGraph = c.CallGraph
+	taintAnalysis.ruler = c.Ruler
 	f := taintAnalysis.Graph.Func
 
 	// init param taints in passThrough
@@ -205,7 +208,5 @@ func (a *TaintAnalysis) End(universe []*entry.Entry) {
 	}
 	// save passThrough to passThroughContainer
 	(*a.passThroughContainer)[f.String()] = passThrough
-	if a.config.Debug {
-		fmt.Println("finish analysis for: "+f.String()+", result: ", passThrough)
-	}
+	fmt.Println("end analysis for: "+f.String()+", result: ", passThrough)
 }

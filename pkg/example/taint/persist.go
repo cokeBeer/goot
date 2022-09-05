@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-// Persist stores passthrough data to target destination
-func Persist(passThroughContainer *map[string][][]int, dst string) error {
+// PersistPassThrough stores passthrough data to target destination
+func PersistPassThrough(passThroughContainer *map[string][][]int, dst string) error {
 	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
@@ -22,8 +22,23 @@ func Persist(passThroughContainer *map[string][][]int, dst string) error {
 	return nil
 }
 
-// Fetch loads passthrougth data from target source
-func Fetch(passThroughContainer *map[string][][]int, src string) error {
+// PersistCallGraph stores passthrough data to target destination
+func PersistCallGraph(edges *map[string]*Edge, dst string) error {
+	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+	res, err := json.Marshal(*edges)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(f, string(res))
+	f.Close()
+	return nil
+}
+
+// FetchPassThrough loads passthrougth data from target source
+func FetchPassThrough(passThroughContainer *map[string][][]int, src string) error {
 	f, err := os.OpenFile(src, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
