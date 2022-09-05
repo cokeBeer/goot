@@ -92,7 +92,7 @@ You can see key `fmt.Sprintf` holds the value `[[0,1]]`
 ```
 This means the first parameter's taint and the second parameter's taint are passed to the first return value\
 Also, you will get a `callgraph.json` in the same directory\
-You can see the json file contains taint from one call parameter to another call parameter
+You can see the json file contains taint edges from one call parameter to another call parameter
 ```json
 {
     "(*github.com/cokeBeer/goot/pkg/bench.cleaner).startProcessing#0#(*os/exec.Cmd).StdoutPipe#0": {
@@ -107,6 +107,7 @@ You can see the json file contains taint from one call parameter to another call
     }
 }
 ```
+This means there is a taint edge from position `0` of `startProcessing` (in this case, the parameter is the receiver `bench.cleaner` itself ) to position `0` of `StdoutPipe` (in this case, the parameter is ther reciver `exec.Cmd` iteself, too)
 
 
 ## Use as a framework
@@ -178,7 +179,7 @@ And you can learn **how to run** an analysis from  `cmd` package
 ## Presentation
 
 This is the output of `cmd/constantpropagationanalysis`\
-The first part is the ssa and the second part is the constant propagation on ssa
+The first part is the SSA format of the source code and the second part is the constant propagation on SSA
 ```
 # Name: constantpropagtionanalysis.Hello
 # Package: constantpropagtionanalysis
