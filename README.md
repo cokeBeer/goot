@@ -77,7 +77,6 @@ func main() {
 }
 ```
 Run the code, and you will get a `passthrough.json` in the same directory, which contains taint passthrough information of all functions in your project\
-I hava generated an output for `fmt` in [cmd/taintanalysis/fmt.json](cmd/taintanalysis/fmt.json)\
 You can see key `fmt.Sprintf` holds the value `[[0,1]]`
 ```json
 {
@@ -86,7 +85,7 @@ You can see key `fmt.Sprintf` holds the value `[[0,1]]`
     ]
 }
 ```
-This means the first parameter's taint and the second paramter's taint are passed to the first return value
+This means the first parameter's taint and the second parameter's taint are passed to the first return value
 
 
 ## Use as a framework
