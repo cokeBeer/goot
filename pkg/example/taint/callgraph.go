@@ -23,6 +23,8 @@ func NewCallGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *CallGraph
 	for f := range *allFuncs {
 		if f.Signature.Recv() != nil {
 			node := &Node{Canonical: f.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0)}
+			decidePropertry(node, ruler)
+			node.IsStatic = true
 			(*callGraph.Nodes)[f.String()+"#"+strconv.Itoa(0)] = node
 			n := f.Signature.Params().Len()
 			for i := 0; i < n; i++ {

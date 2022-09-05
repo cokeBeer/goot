@@ -1019,6 +1019,21 @@ func (s *TaintSwitcher) CaseStore(inst *ssa.Store) {
 					}
 					(*s.outMap)[fieldAddr.X.Name()] = newTaint3
 				}
+			} else if op, ok := addr.X.(*ssa.UnOp); ok {
+				if fieldAddr2, ok := op.X.(*ssa.FieldAddr); ok {
+					// field is a pointer to a struct
+					newTaint4 := make(map[string]bool)
+					if _oldTaint, ok := (*s.outMap)[fieldAddr2.X.Name()]; ok {
+						oldTaint4 := _oldTaint.(map[string]bool)
+						for k := range oldTaint4 {
+							newTaint4[k] = true
+						}
+						for k := range newTaint {
+							newTaint4[k] = true
+						}
+						(*s.outMap)[fieldAddr2.X.Name()] = newTaint4
+					}
+				}
 			}
 		}
 	case *ssa.IndexAddr:

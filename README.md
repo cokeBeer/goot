@@ -69,13 +69,18 @@ package main
 import "github.com/cokeBeer/goot/pkg/example/taint"
 
 func main() {
-	runner := taint.NewRunner("your-module-path")
-	runner.SrcPath = ""
-	runner.DstPath = "passthrough.json"
+	runner := taint.NewRunner("path-to-your-project")
+	runner.ModuleName = "your-module-name"
+	runner.PassThroughSrcPath = ""
+	runner.PassThroughDstPath = "passthrough.json"
+	runner.CallGraphDstPath = "callgraph.json"
+	runner.PassThroughOnly = false
+	runner.InitOnly = false
 	runner.Debug = true
 	runner.Run()
 }
 ```
+Here is an [example](cmd/taintanalysis/main.go) of what the args should be. It shows how to analyse the `pkg` package in `github.com/cokeBeer/goot`\
 Run the code, and you will get a `passthrough.json` in the same directory, which contains taint passthrough information of all functions in your project\
 You can see key `fmt.Sprintf` holds the value `[[0,1]]`
 ```json
@@ -85,7 +90,23 @@ You can see key `fmt.Sprintf` holds the value `[[0,1]]`
     ]
 }
 ```
-This means the first parameter's taint and the second parameter's taint are passed to the first return value
+This means the first parameter's taint and the second parameter's taint are passed to the first return value\
+Also, you will get a `callgraph.json` in the same directory\
+You can see the json file contains taint from one call parameter to another call parameter
+```json
+{
+    "(*github.com/cokeBeer/goot/pkg/bench.cleaner).startProcessing#0#(*os/exec.Cmd).StdoutPipe#0": {
+        "From": "(*github.com/cokeBeer/goot/pkg/bench.cleaner).startProcessing",
+        "FromIndex": 0,
+        "To": "(*os/exec.Cmd).StdoutPipe",
+        "ToIndex": 0,
+        "ToIsMethod": false,
+        "ToIsSink": false,
+        "ToIsSignature": false,
+        "ToIsStatic": true
+    }
+}
+```
 
 
 ## Use as a framework
