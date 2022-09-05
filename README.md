@@ -107,7 +107,7 @@ You can see the json file contains taint edges from one call parameter to anothe
     }
 }
 ```
-This means there is a taint edge from position `0` of `startProcessing` (in this case, the parameter is the receiver `bench.cleaner` itself ) to position `0` of `StdoutPipe` (in this case, the parameter is ther reciver `exec.Cmd` iteself, too)
+This means there is a taint edge from position `0` of `startProcessing` (in this case, the parameter is the receiver `bench.cleaner` itself ) to position `0` of `StdoutPipe` (in this case, the parameter is ther recevier `exec.Cmd` iteself, too)
 
 
 ## Use as a framework
