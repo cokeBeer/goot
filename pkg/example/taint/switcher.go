@@ -136,12 +136,26 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 	case *ssa.MakeInterface:
 		// caller can be a MakeInterface instruction
 		// we consider it as an interface
-		m := inst.Call.Method
-		s.passInvokeTaint(m, inst)
+		if inst.Call.Method == nil {
+			// if it is a function, its signature information is in inst.Call.Value
+			m := v.Type().Underlying().(*types.Signature)
+			s.passFuncParamTaint(m, inst)
+		} else {
+			// we consider is as a interface
+			m := inst.Call.Method
+			s.passInvokeTaint(m, inst)
+		}
 	case *ssa.TypeAssert:
 		// caller can be a TypeAssert instruction
-		m := inst.Call.Method
-		s.passInvokeTaint(m, inst)
+		if inst.Call.Method == nil {
+			// if it is a function, its signature information is in inst.Call.Value
+			m := v.Type().Underlying().(*types.Signature)
+			s.passFuncParamTaint(m, inst)
+		} else {
+			// we consider is as a interface
+			m := inst.Call.Method
+			s.passInvokeTaint(m, inst)
+		}
 	case *ssa.UnOp:
 		// caller can be a UnOp instruction
 		switch x := (v.X).(type) {
