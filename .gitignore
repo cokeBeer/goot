@@ -79,7 +79,9 @@ node_modules/
 ######################
 gostd.json
 init.json
+callgraph.json
 
 # BENCH FILE #
 ######################
 pkg/bench
+pkg/pta

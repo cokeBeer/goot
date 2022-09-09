@@ -73,8 +73,8 @@ func (r *BaseRuler) IsSink(_f any) bool {
 	return false
 }
 
-// IsIntro returns whether a node is from target module
-func (r *BaseRuler) IsIntro(_f any) bool {
+// IsIntra returns whether a node is from target module
+func (r *BaseRuler) IsIntra(_f any) bool {
 	switch f := (_f).(type) {
 	case string:
 		for _, name := range r.moduleName {

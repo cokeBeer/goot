@@ -1,6 +1,6 @@
 package taint
 
-import "github.com/cokeBeer/goot/pkg/example/taint/rule"
+import "github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
 
 // DummyRuler is a dummy rule.Ruler used for test
 type DummyRuler struct {
@@ -23,7 +23,7 @@ func passProperty(node *Node, edge *Edge) {
 
 // decideProperty decide a node's properties by a ruler
 func decidePropertry(node *Node, ruler rule.Ruler) {
-	if ruler.IsIntro(node.Canonical) {
+	if ruler.IsIntra(node.Canonical) {
 		node.IsIntra = true
 	}
 	if ruler.IsSource(node.Canonical) {

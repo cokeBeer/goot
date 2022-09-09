@@ -1,7 +1,7 @@
 package taint
 
 import (
-	"github.com/cokeBeer/goot/pkg/example/taint/rule"
+	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -18,7 +18,7 @@ type TaintConfig struct {
 }
 
 // PrintBody represents the name of the function should be printed
-const PrintBody = ""
+const PrintBody = "A"
 
 // Store represents the path of the passthrough data
 const Store = "gostd.json"

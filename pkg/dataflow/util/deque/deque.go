@@ -3,7 +3,7 @@ package deque
 import (
 	"sync"
 
-	"github.com/cokeBeer/goot/pkg/util/entry"
+	"github.com/cokeBeer/goot/pkg/dataflow/util/entry"
 )
 
 // Deque represents a deque of entry

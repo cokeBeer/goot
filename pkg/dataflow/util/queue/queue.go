@@ -3,7 +3,7 @@ package queue
 import (
 	"sync"
 
-	"github.com/cokeBeer/goot/pkg/util/entry"
+	"github.com/cokeBeer/goot/pkg/dataflow/util/entry"
 )
 
 // Queue represents a Queue

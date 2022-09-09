@@ -5,12 +5,12 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/cokeBeer/goot/pkg/toolkits/graph"
-	"github.com/cokeBeer/goot/pkg/toolkits/scalar"
-	"github.com/cokeBeer/goot/pkg/util"
-	"github.com/cokeBeer/goot/pkg/util/deque"
-	"github.com/cokeBeer/goot/pkg/util/entry"
-	"github.com/cokeBeer/goot/pkg/util/queue"
+	"github.com/cokeBeer/goot/pkg/dataflow/toolkits/graph"
+	"github.com/cokeBeer/goot/pkg/dataflow/toolkits/scalar"
+	"github.com/cokeBeer/goot/pkg/dataflow/util"
+	"github.com/cokeBeer/goot/pkg/dataflow/util/deque"
+	"github.com/cokeBeer/goot/pkg/dataflow/util/entry"
+	"github.com/cokeBeer/goot/pkg/dataflow/util/queue"
 	"github.com/dnote/color"
 	"golang.org/x/tools/go/ssa"
 )

@@ -38,7 +38,7 @@ func (i *InterfaceHierarchy) LookupMethods(I *types.Interface, m *types.Func) []
 	return methods
 }
 
-// LookupFuncs returns
+// LookupFuncs returns *ssa.Function that have same signature
 func (i *InterfaceHierarchy) LookupFuncs(signature *types.Signature) []*ssa.Function {
 	funcs := i.funcsBySig.At(signature)
 	if funcs == nil {

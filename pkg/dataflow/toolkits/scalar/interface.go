@@ -1,8 +1,8 @@
 package scalar
 
 import (
-	"github.com/cokeBeer/goot/pkg/toolkits/graph"
-	"github.com/cokeBeer/goot/pkg/util/entry"
+	"github.com/cokeBeer/goot/pkg/dataflow/toolkits/graph"
+	"github.com/cokeBeer/goot/pkg/dataflow/util/entry"
 	"golang.org/x/tools/go/ssa"
 )
 

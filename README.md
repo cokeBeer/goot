@@ -7,7 +7,7 @@
 - [goot](#goot)
 	- [What is goot?](#what-is-goot)
 	- [Get started](#get-started)
-	- [Use passthrough analysis](#use-passthrough-analysis)
+	- [Use taint analysis](#use-taint-analysis)
 	- [Use as a framework](#use-as-a-framework)
 	- [Presentation](#presentation)
 	- [Tips](#tips)
@@ -37,7 +37,7 @@ For example, copy `cmd/constantpropagationanalysis`
 package main
 
 import (
-	"github.com/cokeBeer/goot/pkg/example/constantpropagation"
+	"github.com/cokeBeer/goot/pkg/example/dataflow/constantpropagation"
 )
 
 const src = `package main
@@ -61,12 +61,12 @@ func main() {
 }
 ```
 Run the code, and you will get a constant propagtion analysis [result](#presentation) output to console
-##  Use passthrough analysis
+##  Use taint analysis
 Write code below in your project
 ```go
 package main
 
-import "github.com/cokeBeer/goot/pkg/example/taint"
+import "github.com/cokeBeer/goot/pkg/example/dataflow/taint"
 
 func main() {
 	runner := taint.NewRunner("path-to-your-project")
@@ -101,7 +101,7 @@ You can see the json file contains taint edges from one call parameter to anothe
         "To": "(*os/exec.Cmd).StdoutPipe",
         "ToIndex": 0,
         "ToIsMethod": false,
-        "ToIsSink": false,
+        "ToIsSink": true,
         "ToIsSignature": false,
         "ToIsStatic": true
     }
@@ -172,7 +172,7 @@ type ConstantPropagationSwitcher struct {
 
 These can make you focus on the core methods you really need to design carefully in specific analyses
 
-Some examples can be found in `pkg/example` package
+Some examples can be found in `pkg/example/dataflow` package
 
 And you can learn **how to run** an analysis from  `cmd` package
 

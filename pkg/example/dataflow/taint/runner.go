@@ -1,7 +1,7 @@
 package taint
 
 import (
-	"github.com/cokeBeer/goot/pkg/example/taint/rule"
+	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"

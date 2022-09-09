@@ -4,7 +4,7 @@ import (
 	"go/token"
 	"math"
 
-	"github.com/cokeBeer/goot/pkg/golang/switcher"
+	"github.com/cokeBeer/goot/pkg/dataflow/golang/switcher"
 	"golang.org/x/tools/go/ssa"
 )
 
