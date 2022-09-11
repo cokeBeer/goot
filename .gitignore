@@ -80,7 +80,7 @@ node_modules/
 gostd*.json
 init*.json
 callgraph.json
-passthrought.json
+passthrough.json
 
 # BENCH FILE #
 ######################

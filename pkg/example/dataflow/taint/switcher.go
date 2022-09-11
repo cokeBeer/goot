@@ -875,6 +875,17 @@ func (s *TaintSwitcher) CaseReturn(inst *ssa.Return) {
 				}
 			}
 		}
+		for i := 0; i < f.Signature.Params().Len(); i++ {
+			arg := f.Signature.Params().At(i).Name()
+			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
+			_, ok := (*s.outMap)[arg]
+			if ok {
+				for k := range (*s.outMap)[arg].(map[string]bool) {
+					// merge args' taint
+					s.taintAnalysis.passThrough[len(inst.Results)+i+1][k] = true
+				}
+			}
+		}
 	} else {
 		for i := 0; i < len(inst.Results); i++ {
 			result := inst.Results[i].Name()
@@ -884,6 +895,17 @@ func (s *TaintSwitcher) CaseReturn(inst *ssa.Return) {
 				for k := range (*s.outMap)[result].(map[string]bool) {
 					// merge other results' taint
 					s.taintAnalysis.passThrough[i][k] = true
+				}
+			}
+		}
+		for i := 0; i < f.Signature.Params().Len(); i++ {
+			arg := f.Signature.Params().At(i).Name()
+			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
+			_, ok := (*s.outMap)[arg]
+			if ok {
+				for k := range (*s.outMap)[arg].(map[string]bool) {
+					// merge args' taint
+					s.taintAnalysis.passThrough[len(inst.Results)+i][k] = true
 				}
 			}
 		}
@@ -1198,6 +1220,7 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 
 	passThrough := (*container)[f.String()]
 	n := len(passThrough)
+	newTaints := make([]map[string]bool, 0)
 	// for every results
 	for i := 0; i < n; i++ {
 		newTaint := make(map[string]bool)
@@ -1236,36 +1259,45 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 				}
 			}
 		}
+		newTaints = append(newTaints, newTaint)
+	}
+	for i := 0; i < n; i++ {
 		if f.Signature.Recv() != nil {
 			// if the function has a receiver
 			if i == 0 {
 				// update receiver's taint
 				// the receiver may be a pointer, so update further by the pointer
-				(*s.outMap)[inst.Call.Args[0].Name()] = newTaint
+				(*s.outMap)[inst.Call.Args[0].Name()] = newTaints[i]
 				if op, ok := (inst.Call.Args[0]).(*ssa.UnOp); ok {
-					s.passPointTaint(newTaint, op.X)
+					s.passPointTaint(newTaints[i], op.X)
 				} else {
-					s.passPointTaint(newTaint, inst.Call.Args[0])
+					s.passPointTaint(newTaints[i], inst.Call.Args[0])
 				}
-			} else {
-				if n == 2 {
+			} else if i < 1+f.Signature.Results().Len() {
+				if f.Signature.Results().Len() == 1 {
 					// if the function has one result
-					(*s.outMap)[inst.Name()] = newTaint
+					(*s.outMap)[inst.Name()] = newTaints[i]
 				} else {
 					// else mark the variables as "inst.Name().X"
 					// e.g. t0.1, t0.2
-					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaint
+					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaints[i]
 				}
+			} else {
+				// update args' taint
+				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()].Name()] = newTaints[i]
 			}
 		} else {
 			// if the function has no receiver
-			if n == 1 {
+			if f.Signature.Results().Len() == 1 {
 				// if the function has one result
-				(*s.outMap)[inst.Name()] = newTaint
-			} else {
+				(*s.outMap)[inst.Name()] = newTaints[i]
+			} else if i < f.Signature.Results().Len() {
 				// else mark the variables as "inst.Name().X"
 				// e.g. t0.1, t0.2
-				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaint
+				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaints[i]
+			} else {
+				// update args' taint
+				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()].Name()] = newTaints[i]
 			}
 		}
 	}
@@ -1399,6 +1431,7 @@ func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
 
 	passThrough := (*container)[f.String()]
 	n := len(passThrough)
+	newTaints := make([]map[string]bool, 0)
 	for i := 0; i < n; i++ {
 		newTaint := make(map[string]bool)
 		// for every parameter index in passthrough, collect arg's taint
@@ -1473,23 +1506,29 @@ func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
 				}
 			}
 		}
+		newTaints = append(newTaints, newTaint)
+	}
+	for i := 0; i < n; i++ {
 		if i == 0 {
 			// update receiver's taint
 			// the receiver may be a pointer, so update further by the pointer
-			(*s.outMap)[inst.Call.Value.Name()] = newTaint
+			(*s.outMap)[inst.Call.Value.Name()] = newTaints[i]
 			if op, ok := (inst.Call.Value).(*ssa.UnOp); ok {
-				s.passPointTaint(newTaint, op.X)
+				s.passPointTaint(newTaints[i], op.X)
 			} else {
-				s.passPointTaint(newTaint, inst.Call.Value)
+				s.passPointTaint(newTaints[i], inst.Call.Value)
 			}
 		} else {
-			if n == 2 {
+			if f.Signature.Results().Len() == 1 {
 				// if the function has one result
-				(*s.outMap)[inst.Name()] = newTaint
-			} else {
+				(*s.outMap)[inst.Name()] = newTaints[i]
+			} else if i < 1+f.Signature.Results().Len() {
 				// else mark the variables as "inst.Name().X"
 				// e.g. t0.1, t0.2
-				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaint
+				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaints[i]
+			} else {
+				// update args' taint
+				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()-1].Name()] = newTaints[i]
 			}
 		}
 	}

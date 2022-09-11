@@ -9,13 +9,13 @@ import (
 func main() {
 	// the ../../ takes you back to root of the project
 	// and the ... means scan packages in package pkg recursively
-	runner := taint.NewRunner("../../pkg...")
+	runner := taint.NewRunner(taint.Gostd...)
 	// the module name is the name defined in go.mod
 	runner.ModuleName = "github.com/cokeBeer/goot"
-	runner.PassThroughSrcPath = "gostd1.9.json"
+	runner.PassThroughSrcPath = ""
 	runner.PassThroughDstPath = "passthrough.json"
 	runner.CallGraphDstPath = "callgraph.json"
-	runner.PassThroughOnly = false
+	runner.PassThroughOnly = true
 	runner.InitOnly = false
 	runner.Debug = true
 	runner.PersistToNeo4j = true

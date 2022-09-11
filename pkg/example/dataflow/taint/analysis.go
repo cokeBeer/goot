@@ -122,6 +122,11 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	for i := 0; i < n; i++ {
 		taintAnalysis.passThrough = append(taintAnalysis.passThrough, make(map[string]bool))
 	}
+
+	n = f.Signature.Params().Len()
+	for i := 0; i < n; i++ {
+		taintAnalysis.passThrough = append(taintAnalysis.passThrough, make(map[string]bool))
+	}
 	return taintAnalysis
 }
 
