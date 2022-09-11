@@ -45,6 +45,7 @@ func (r *BaseRuler) IsSink(_f any) bool {
 	sink["(*database/sql.DB).QueryContext"] = true
 	sink["(*database/sql.DB).QueryRow"] = true
 	sink["(*database/sql.DB).QueryRowContext"] = true
+	sink["(*gorm.io/gorm.DB).Raw"] = true
 	// ssrf
 	sink["net/http.Get"] = true
 	sink["net/http.Head"] = true
