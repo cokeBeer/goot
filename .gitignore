@@ -85,8 +85,8 @@ passthrought.json
 # BENCH FILE #
 ######################
 pkg/bench
-pkg/pta
 
 # DEV FILE #
 ######################
+pkg/pta
 cmd/pointer
