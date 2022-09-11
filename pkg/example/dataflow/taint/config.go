@@ -18,7 +18,7 @@ type TaintConfig struct {
 }
 
 // PrintBody represents the name of the function should be printed
-const PrintBody = "A"
+const PrintBody = ""
 
 // Store represents the path of the passthrough data
 const Store = "gostd.json"

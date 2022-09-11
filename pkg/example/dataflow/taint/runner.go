@@ -18,6 +18,10 @@ type Runner struct {
 	PassThroughDstPath string
 	CallGraphDstPath   string
 	Ruler              rule.Ruler
+	PersistToNeo4j     bool
+	Neo4jUsername      string
+	Neo4jPassword      string
+	Neo4jURI           string
 }
 
 // NewRunner returns a *taint.Runner
@@ -25,7 +29,8 @@ func NewRunner(PkgPath ...string) *Runner {
 	return &Runner{PkgPath: PkgPath, ModuleName: "",
 		PassThroughSrcPath: "", PassThroughDstPath: "",
 		CallGraphDstPath: "", Ruler: nil,
-		Debug: false, InitOnly: false, PassThroughOnly: false}
+		Debug: false, InitOnly: false, PassThroughOnly: false,
+		PersistToNeo4j: false, Neo4jURI: "", Neo4jUsername: "", Neo4jPassword: ""}
 }
 
 // Run kick off an analysis
@@ -96,6 +101,8 @@ func (r *Runner) Run() error {
 	if r.CallGraphDstPath != "" {
 		PersistCallGraph(callGraph.Edges, r.CallGraphDstPath)
 	}
-
+	if !r.PassThroughOnly && r.PersistToNeo4j {
+		PersistToNeo4j(callGraph.Nodes, callGraph.Edges, r.Neo4jURI, r.Neo4jUsername, r.Neo4jPassword)
+	}
 	return nil
 }

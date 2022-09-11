@@ -77,11 +77,16 @@ node_modules/
 
 # BIG JSON #
 ######################
-gostd.json
-init.json
+gostd*.json
+init*.json
 callgraph.json
+passthrought.json
 
 # BENCH FILE #
 ######################
 pkg/bench
 pkg/pta
+
+# DEV FILE #
+######################
+cmd/pointer

@@ -1,6 +1,10 @@
 package main
 
-import "github.com/cokeBeer/goot/pkg/example/dataflow/taint"
+import (
+	"log"
+
+	"github.com/cokeBeer/goot/pkg/example/dataflow/taint"
+)
 
 func main() {
 	// the ../../ takes you back to root of the project
@@ -8,11 +12,18 @@ func main() {
 	runner := taint.NewRunner("../../pkg...")
 	// the module name is the name defined in go.mod
 	runner.ModuleName = "github.com/cokeBeer/goot"
-	runner.PassThroughSrcPath = ""
+	runner.PassThroughSrcPath = "gostd1.9.json"
 	runner.PassThroughDstPath = "passthrough.json"
 	runner.CallGraphDstPath = "callgraph.json"
 	runner.PassThroughOnly = false
 	runner.InitOnly = false
 	runner.Debug = true
-	runner.Run()
+	runner.PersistToNeo4j = true
+	runner.Neo4jURI = "bolt://localhost:7687"
+	runner.Neo4jUsername = "neo4j"
+	runner.Neo4jPassword = "password"
+	err := runner.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

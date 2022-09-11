@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/dnote/color v1.7.0
+	github.com/neo4j/neo4j-go-driver/v4 v4.4.4
 	golang.org/x/tools v0.1.12
 )
 
