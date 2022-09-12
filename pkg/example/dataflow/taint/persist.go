@@ -86,18 +86,24 @@ func PersistToNeo4j(nodes *map[string]*Node, edges *map[string]*Edge, uri string
 }
 
 // FetchPassThrough loads passthrougth data from target source
-func FetchPassThrough(passThroughContainer *map[string][][]int, src string) error {
-	f, err := os.OpenFile(src, os.O_RDONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-	res, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(res, passThroughContainer)
-	if err != nil {
-		return err
+func FetchPassThrough(passThroughContainer *map[string][][]int, src []string) error {
+	for _, path := range src {
+		tmp := make(map[string][][]int)
+		f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		res, err := io.ReadAll(f)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(res, &tmp)
+		if err != nil {
+			return err
+		}
+		for k, v := range tmp {
+			(*passThroughContainer)[k] = v
+		}
 	}
 	return nil
 }

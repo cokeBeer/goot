@@ -14,7 +14,7 @@ type Runner struct {
 	Debug              bool
 	InitOnly           bool
 	PassThroughOnly    bool
-	PassThroughSrcPath string
+	PassThroughSrcPath []string
 	PassThroughDstPath string
 	CallGraphDstPath   string
 	Ruler              rule.Ruler
@@ -27,7 +27,7 @@ type Runner struct {
 // NewRunner returns a *taint.Runner
 func NewRunner(PkgPath ...string) *Runner {
 	return &Runner{PkgPath: PkgPath, ModuleName: "",
-		PassThroughSrcPath: "", PassThroughDstPath: "",
+		PassThroughSrcPath: nil, PassThroughDstPath: "",
 		CallGraphDstPath: "", Ruler: nil,
 		Debug: false, InitOnly: false, PassThroughOnly: false,
 		PersistToNeo4j: false, Neo4jURI: "", Neo4jUsername: "", Neo4jPassword: ""}
@@ -65,9 +65,11 @@ func (r *Runner) Run() error {
 	callGraph := NewCallGraph(&funcs, ruler)
 
 	passThroughContainter := make(map[string][][]int)
-	if r.PassThroughSrcPath != "" {
+	if r.PassThroughSrcPath != nil {
 		FetchPassThrough(&passThroughContainter, r.PassThroughSrcPath)
 	}
+
+	passThroughContainter["github.com/cokeBeer/goot/pkg/bench/copy.Copy"] = [][]int{{0}, {0, 1}}
 
 	initMap := make(map[string]*ssa.Function)
 	history := make(map[string]bool)

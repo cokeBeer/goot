@@ -1288,13 +1288,15 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 			}
 		} else {
 			// if the function has no receiver
-			if f.Signature.Results().Len() == 1 {
-				// if the function has one result
-				(*s.outMap)[inst.Name()] = newTaints[i]
-			} else if i < f.Signature.Results().Len() {
-				// else mark the variables as "inst.Name().X"
-				// e.g. t0.1, t0.2
-				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaints[i]
+			if i < f.Signature.Results().Len() {
+				if f.Signature.Results().Len() == 1 {
+					// if the function has one result
+					(*s.outMap)[inst.Name()] = newTaints[i]
+				} else {
+					// else mark the variables as "inst.Name().X"
+					// e.g. t0.1, t0.2
+					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaints[i]
+				}
 			} else {
 				// update args' taint
 				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()].Name()] = newTaints[i]
@@ -1519,13 +1521,15 @@ func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
 				s.passPointTaint(newTaints[i], inst.Call.Value)
 			}
 		} else {
-			if f.Signature.Results().Len() == 1 {
-				// if the function has one result
-				(*s.outMap)[inst.Name()] = newTaints[i]
-			} else if i < 1+f.Signature.Results().Len() {
-				// else mark the variables as "inst.Name().X"
-				// e.g. t0.1, t0.2
-				(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaints[i]
+			if i < 1+f.Signature.Results().Len() {
+				if f.Signature.Results().Len() == 1 {
+					// if the function has one result
+					(*s.outMap)[inst.Name()] = newTaints[i]
+				} else {
+					// else mark the variables as "inst.Name().X"
+					// e.g. t0.1, t0.2
+					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaints[i]
+				}
 			} else {
 				// update args' taint
 				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()-1].Name()] = newTaints[i]

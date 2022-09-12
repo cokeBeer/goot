@@ -81,6 +81,7 @@ gostd*.json
 init*.json
 callgraph.json
 passthrough.json
+additional.json
 
 # BENCH FILE #
 ######################
