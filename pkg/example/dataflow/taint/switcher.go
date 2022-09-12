@@ -689,8 +689,9 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1), newTaints[i])
 				}
 			} else {
-				// update args' taint
+				// update args' taint, use passPointTaint to pass back
 				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()].Name(), newTaints[i])
+				s.passPointTaint(inst.Call.Args[i-f.Signature.Results().Len()])
 			}
 		} else {
 			// if the function has no receiver
@@ -704,8 +705,9 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i), newTaints[i])
 				}
 			} else {
-				// update args' taint
+				// update args' taint, use passPointTaint to pass back
 				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()].Name(), newTaints[i])
+				s.passPointTaint(inst.Call.Args[i-f.Signature.Results().Len()])
 			}
 		}
 	}
