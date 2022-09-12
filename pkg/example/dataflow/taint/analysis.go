@@ -18,7 +18,7 @@ import (
 type TaintAnalysis struct {
 	scalar.BaseFlowAnalysis
 	taintSwitcher        *TaintSwitcher
-	passThrough          []map[string]bool
+	passThrough          []*TaintWrapper
 	config               *TaintConfig
 	passThroughContainer *map[string][][]int
 	initMap              *map[string]*ssa.Function
@@ -40,7 +40,7 @@ func Run(f *ssa.Function, c *TaintConfig) {
 		return
 	}
 
-	if f.Name() == PrintBody {
+	if f.Name() == c.TargetFunc {
 		f.WriteTo(os.Stdout)
 	}
 
@@ -104,7 +104,7 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	taintAnalysis.config = c
 	taintAnalysis.passThroughContainer = c.PassThroughContainer
 	taintAnalysis.initMap = c.InitMap
-	taintAnalysis.passThrough = make([]map[string]bool, 0)
+	taintAnalysis.passThrough = make([]*TaintWrapper, 0)
 	taintAnalysis.interfaceHierarchy = c.InterfaceHierarchy
 	taintAnalysis.callGraph = c.CallGraph
 	taintAnalysis.ruler = c.Ruler
@@ -113,19 +113,18 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	// init param taints in passThrough
 	if f.Signature.Recv() != nil {
 		// if the function has a receiver, add a position for receiver's taint
-		recvMap := make(map[string]bool)
-		recvMap[f.Params[0].Name()] = true
+		recvMap := NewTaintWrapper(f.Params[0].Name())
 		taintAnalysis.passThrough = append(taintAnalysis.passThrough, recvMap)
 	}
 
 	n := f.Signature.Results().Len()
 	for i := 0; i < n; i++ {
-		taintAnalysis.passThrough = append(taintAnalysis.passThrough, make(map[string]bool))
+		taintAnalysis.passThrough = append(taintAnalysis.passThrough, NewTaintWrapper())
 	}
 
 	n = f.Signature.Params().Len()
 	for i := 0; i < n; i++ {
-		taintAnalysis.passThrough = append(taintAnalysis.passThrough, make(map[string]bool))
+		taintAnalysis.passThrough = append(taintAnalysis.passThrough, NewTaintWrapper())
 	}
 	return taintAnalysis
 }
@@ -136,9 +135,7 @@ func (a *TaintAnalysis) NewInitalFlow() *map[any]any {
 
 	for _, v := range a.Graph.Func.Params {
 		// init param taints in flow
-		newTaint := make(map[string]bool)
-		newTaint[v.Name()] = true
-		m[v.Name()] = newTaint
+		SetTaint(&m, v.Name(), v.Name())
 	}
 	return &m
 }
@@ -163,22 +160,13 @@ func (a *TaintAnalysis) apply(inMap *map[any]any, inst ssa.Instruction, outMap *
 
 // MergeInto merges from in to inout based on unit
 func (a *TaintAnalysis) MergeInto(unit ssa.Instruction, inout *map[any]any, in *map[any]any) {
-	for k, _v := range *in {
-		if _u, ok := (*inout)[k]; ok {
+	for name, wrapper := range *in {
+		if _, ok := (*inout)[name]; ok {
 			// if inout and in have a same key, merge the value first
-			v := _v.(map[string]bool)
-			u := _u.(map[string]bool)
-			newTaint := make(map[string]bool)
-			for w := range v {
-				newTaint[w] = true
-			}
-			for w := range u {
-				newTaint[w] = true
-			}
-			(*inout)[k] = newTaint
+			MergeTaintWrapper(inout, in, name.(string))
 		} else {
 			// else copy key and value from in to out directly
-			(*inout)[k] = _v
+			SetTaintWrapper(inout, name.(string), wrapper.(*TaintWrapper))
 		}
 	}
 }
@@ -191,10 +179,8 @@ func (a *TaintAnalysis) End(universe []*entry.Entry) {
 		// reset receiver's taint if it is a value receiver
 		switch a.Graph.Func.Signature.Recv().Type().(type) {
 		case *types.Named:
-			recv := a.Graph.Func.Params[0].Name()
-			recvMap := make(map[string]bool)
-			recvMap[recv] = true
-			a.passThrough[0] = recvMap
+			recv := NewTaintWrapper(a.Graph.Func.Params[0].Name())
+			a.passThrough[0] = recv
 		}
 	}
 
@@ -205,7 +191,7 @@ func (a *TaintAnalysis) End(universe []*entry.Entry) {
 		singlePassThrough := make([]int, 0)
 		for i := 0; i < n; i++ {
 			// for every return value, checks its taints from which param, and records
-			if _, ok := v[params[i].Name()]; ok {
+			if ok := v.HasTaint(params[i].Name()); ok {
 				singlePassThrough = append(singlePassThrough, i)
 			}
 		}

@@ -14,6 +14,7 @@ type TaintConfig struct {
 	CallGraph            *CallGraph
 	Ruler                rule.Ruler
 	PassThroughOnly      bool
+	TargetFunc           string
 	Debug                bool
 }
 

@@ -19,82 +19,14 @@ type TaintSwitcher struct {
 
 // CaseAlloc accepts a Alloc instruction
 func (s *TaintSwitcher) CaseAlloc(inst *ssa.Alloc) {
-	(*s.outMap)[inst.Name()] = make(map[string]bool)
+	GetTaintWrapper(s.outMap, inst.Name())
 }
 
 // CaseBinOp accepts a BinOp instruction
 func (s *TaintSwitcher) CaseBinOp(inst *ssa.BinOp) {
 	// update new taint by both inst.X and inst.Y
-	newTaint := make(map[string]bool)
-	// update taint by inst.X
-	switch x := (inst.X).(type) {
-	case *ssa.Parameter:
-		// for parameter, just pass its name
-		// actually, modification of parameter will generate new var
-		// so don't worry about changes of parameter's taints
-		// for receiver, the correctness also holds
-		newTaint[inst.X.Name()] = true
-	case
-		*ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		// for other value instructions, pass old taints to new taints
-		oldTaint := (*s.outMap)[x.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	// also update taint by inst.Y
-	switch y := (inst.Y).(type) {
-	case *ssa.Parameter:
-		newTaint[y.Name()] = true
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[y.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	// inst.X and inst.Y both have type ssa.Value, so they have Name()
+	PassTaint(s.outMap, inst.Name(), inst.X.Name(), inst.Y.Name())
 }
 
 // CaseCall accepts a Call instruction
@@ -452,7 +384,7 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 			"make",
 			"cap",
 			"ssa:wrapnilchk":
-			(*s.outMap)[inst.Name()] = make(map[string]bool)
+			GetTaintWrapper(s.outMap, inst.Name())
 		}
 	case *ssa.Function:
 		// caller can be a known function
@@ -474,384 +406,118 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 
 // CaseChangeInterface accepts a ChangeInterface instruction
 func (s *TaintSwitcher) CaseChangeInterface(inst *ssa.ChangeInterface) {
-	newTaint := make(map[string]bool)
-	if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-		// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseChangeType accepts a ChangeType instruction
 func (s *TaintSwitcher) CaseChangeType(inst *ssa.ChangeType) {
-	newTaint := make(map[string]bool)
-	if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-		// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseConvert accepts a Convert instruction
 func (s *TaintSwitcher) CaseConvert(inst *ssa.Convert) {
-	newTaint := make(map[string]bool)
-	if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-		// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseExtract accepts a Extract instruction
 func (s *TaintSwitcher) CaseExtract(inst *ssa.Extract) {
-	newTaint := make(map[string]bool)
 	// mark the variables as "inst.Tuple.Name().i"
 	// e.g. t1.0, t3.2
-	oldTaint := (*s.outMap)[inst.Tuple.Name()+"."+strconv.Itoa(inst.Index)].(map[string]bool)
-	for k := range oldTaint {
-		newTaint[k] = true
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	mark := inst.Tuple.Name() + "." + strconv.Itoa(inst.Index)
+	PassTaint(s.outMap, inst.Name(), mark)
 }
 
 // CaseField accepts a Field instruction
 func (s *TaintSwitcher) CaseField(inst *ssa.Field) {
-	newTaint := make(map[string]bool)
-	if _, ok := (inst.X).(*ssa.Global); ok {
-		// skip *ssa.Global
-		(*s.outMap)[inst.Name()] = newTaint
-	} else if _, ok := (inst.X).(*ssa.FreeVar); ok {
-		// skip *ssa.FreeVar
-		(*s.outMap)[inst.Name()] = newTaint
-	} else {
-		oldTaint := (*s.outMap)[inst.X.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-		(*s.outMap)[inst.Name()] = newTaint
-	}
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseFieldAddr accepts a FieldAddr instruction
 func (s *TaintSwitcher) CaseFieldAddr(inst *ssa.FieldAddr) {
-	newTaint := make(map[string]bool)
-	if _, ok := (inst.X).(*ssa.Global); ok {
-		// skip *ssa.Global
-		(*s.outMap)[inst.Name()] = newTaint
-	} else if _, ok := (inst.X).(*ssa.FreeVar); ok {
-		// skip *ssa.FreeVar
-		(*s.outMap)[inst.Name()] = newTaint
-	} else {
-		oldTaint := (*s.outMap)[inst.X.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-		(*s.outMap)[inst.Name()] = newTaint
-	}
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseIndex accepts an Index instruction
 func (s *TaintSwitcher) CaseIndex(inst *ssa.Index) {
-	newTaint := make(map[string]bool)
-	if _, ok := (inst.X).(*ssa.Global); ok {
-		// skip *ssa.Global
-		(*s.outMap)[inst.Name()] = newTaint
-	} else if _, ok := (inst.X).(*ssa.FreeVar); ok {
-		// skip *ssa.FreeVar
-		(*s.outMap)[inst.Name()] = newTaint
-	} else {
-		oldTaint := (*s.outMap)[inst.X.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-		(*s.outMap)[inst.Name()] = newTaint
-	}
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseIndexAddr accepts an IndexAddr instruction
 func (s *TaintSwitcher) CaseIndexAddr(inst *ssa.IndexAddr) {
-	newTaint := make(map[string]bool)
-	if _, ok := (inst.X).(*ssa.Global); ok {
-		// skip *ssa.Global
-		(*s.outMap)[inst.Name()] = newTaint
-	} else if _, ok := (inst.X).(*ssa.FreeVar); ok {
-		// skip *ssa.FreeVar
-		(*s.outMap)[inst.Name()] = newTaint
-	} else {
-		oldTaint := (*s.outMap)[inst.X.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-		(*s.outMap)[inst.Name()] = newTaint
-	}
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseLookup accepts a Lookup instruction
 func (s *TaintSwitcher) CaseLookup(inst *ssa.Lookup) {
-	newTaint := make(map[string]bool)
-	// pass taint in index
-	switch k := (inst.Index).(type) {
-	case *ssa.Parameter:
-		newTaint[k.Name()] = true
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[k.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	// pass taint in map
-	switch v := (inst.X).(type) {
-	case *ssa.Parameter:
-		newTaint[v.Name()] = true
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[v.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
+	// pass taint in index and map
 	if inst.CommaOk {
 		// if needs an ok, mark two variables, and the first one inherits taint
-		(*s.outMap)[inst.Name()+".0"] = newTaint
-		(*s.outMap)[inst.Name()+".1"] = make(map[string]bool)
+		PassTaint(s.outMap, inst.Name()+".0", inst.Index.Name(), inst.X.Name())
+		GetTaintWrapper(s.outMap, inst.Name()+".1")
 	} else {
-		(*s.outMap)[inst.Name()] = newTaint
+		PassTaint(s.outMap, inst.Name(), inst.Index.Name(), inst.X.Name())
 	}
 }
 
 // CaseMakeClosure accepts a MakeClosure instruction
 func (s *TaintSwitcher) CaseMakeClosure(inst *ssa.MakeClosure) {
-	(*s.outMap)[inst.Name()] = make(map[string]bool)
+	GetTaintWrapper(s.outMap, inst.Name())
 }
 
 // CaseMakeChan accepts a MakeChan instruction
 func (s *TaintSwitcher) CaseMakeChan(inst *ssa.MakeChan) {
-	(*s.outMap)[inst.Name()] = make(map[string]bool)
+	GetTaintWrapper(s.outMap, inst.Name())
 }
 
 // CaseMakeInterface accepts a MakeInterface instruction
 func (s *TaintSwitcher) CaseMakeInterface(inst *ssa.MakeInterface) {
-	newTaint := make(map[string]bool)
-	if _, ok := (inst.X).(*ssa.Const); ok {
-		(*s.outMap)[inst.Name()] = newTaint
-	} else {
-		// exclude close$thunk
-		_, ok := (*s.outMap)[inst.X.Name()]
-		if ok {
-			oldTaint := (*s.outMap)[inst.X.Name()].(map[string]bool)
-			for k := range oldTaint {
-				newTaint[k] = true
-			}
-		}
-		(*s.outMap)[inst.Name()] = newTaint
-	}
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseMakeMap accepts a MakeMap instruction
 func (s *TaintSwitcher) CaseMakeMap(inst *ssa.MakeMap) {
-	(*s.outMap)[inst.Name()] = make(map[string]bool)
+	GetTaintWrapper(s.outMap, inst.Name())
 }
 
 // CaseMakeSlice accepts a MakeSlice instruction
 func (s *TaintSwitcher) CaseMakeSlice(inst *ssa.MakeSlice) {
-	(*s.outMap)[inst.Name()] = make(map[string]bool)
+	GetTaintWrapper(s.outMap, inst.Name())
 }
 
 // CaseNext accepts a Next instruction
 func (s *TaintSwitcher) CaseNext(inst *ssa.Next) {
-	newTaint1 := make(map[string]bool)
-	newTaint2 := make(map[string]bool)
-	oldTaint := (*s.outMap)[inst.Iter.Name()].(map[string]bool)
-	for k := range oldTaint {
-		newTaint1[k] = true
-		newTaint2[k] = true
-	}
-	// mark three variables, and the first one inherits taint
-	(*s.outMap)[inst.Name()+".0"] = make(map[string]bool)
-	(*s.outMap)[inst.Name()+".1"] = newTaint1
-	(*s.outMap)[inst.Name()+".2"] = newTaint2
+	// mark three variables, and the second and the third inherits taint
+	GetTaintWrapper(s.outMap, inst.Name()+".0")
+	PassTaint(s.outMap, inst.Name()+".1", inst.Iter.Name())
+	PassTaint(s.outMap, inst.Name()+".2", inst.Iter.Name())
 }
 
 // CaseMapUpdate accepts a MapUpdate instruction
 func (s *TaintSwitcher) CaseMapUpdate(inst *ssa.MapUpdate) {
-	newTaint := make(map[string]bool)
-	// pass taint in key
-	switch k := (inst.Key).(type) {
-	case *ssa.Parameter:
-		newTaint[k.Name()] = true
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[k.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	// pass taint in value
-	switch v := (inst.Value).(type) {
-	case *ssa.Parameter:
-		newTaint[v.Name()] = true
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[v.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	// pass taint in map
-	oldTaint2 := (*s.outMap)[inst.Map.Name()].(map[string]bool)
-	for k := range oldTaint2 {
-		newTaint[k] = true
-	}
-	(*s.outMap)[inst.Map.Name()] = newTaint
+	// pass taint in key and value
+	PassTaint(s.outMap, inst.Map.Name(), inst.Key.Name(), inst.Value.Name())
 }
 
 // CasePhi accepts a Phi instruction
 func (s *TaintSwitcher) CasePhi(inst *ssa.Phi) {
-	newTaint := make(map[string]bool)
-	for _, _v := range inst.Edges {
-		switch v := _v.(type) {
-		case *ssa.Parameter:
-			oldTaint := (*s.outMap)[v.Name()].(map[string]bool)
-			for k := range oldTaint {
-				newTaint[k] = true
-			}
-		case *ssa.Alloc,
-			*ssa.BinOp,
-			*ssa.Call,
-			*ssa.ChangeType,
-			*ssa.ChangeInterface,
-			*ssa.Convert,
-			*ssa.Extract,
-			*ssa.Field,
-			*ssa.FieldAddr,
-			*ssa.Index,
-			*ssa.IndexAddr,
-			*ssa.Lookup,
-			*ssa.MakeChan,
-			*ssa.MakeInterface,
-			*ssa.MakeMap,
-			*ssa.MakeSlice,
-			*ssa.Next,
-			*ssa.Range,
-			*ssa.Slice,
-			*ssa.TypeAssert,
-			*ssa.UnOp,
-			*ssa.Phi:
-			// Phi is the gather of instructions
-			// It may visit uninitialized register, so add an if
-			_oldTaint, ok := (*s.outMap)[v.Name()]
-			if !ok {
-				continue
-			}
-			oldTaint := _oldTaint.(map[string]bool)
-			for k := range oldTaint {
-				newTaint[k] = true
-			}
-		}
+	// Phi is the gather of instructions
+	// It may visit uninitialized register
+	for _, e := range inst.Edges {
+		PassTaint(s.outMap, inst.Name(), e.Name())
 	}
-	(*s.outMap)[inst.Name()] = newTaint
 }
 
 // CaseRange accepts a Range instruction
 func (s *TaintSwitcher) CaseRange(inst *ssa.Range) {
-	newTaint := make(map[string]bool)
-	if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseReturn accepts a Return instruction
@@ -860,53 +526,41 @@ func (s *TaintSwitcher) CaseReturn(inst *ssa.Return) {
 	if f.Signature.Recv() != nil {
 		// if the function has a receiver
 		recv := f.Params[0].Name()
-		for k := range (*s.outMap)[recv].(map[string]bool) {
+		for k := range *GetTaint(s.outMap, recv) {
 			// merge receiver's taint into passthrough
-			s.taintAnalysis.passThrough[0][k] = true
+			s.taintAnalysis.passThrough[0].AddTaint(k)
 		}
 		for i := 0; i < len(inst.Results); i++ {
 			result := inst.Results[i].Name()
 			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			_, ok := (*s.outMap)[result]
-			if ok {
-				for k := range (*s.outMap)[result].(map[string]bool) {
-					// merge other results' taint
-					s.taintAnalysis.passThrough[i+1][k] = true
-				}
+			for k := range *GetTaint(s.outMap, result) {
+				// merge other results' taint
+				s.taintAnalysis.passThrough[i+1].AddTaint(k)
 			}
 		}
 		for i := 0; i < f.Signature.Params().Len(); i++ {
 			arg := f.Signature.Params().At(i).Name()
 			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			_, ok := (*s.outMap)[arg]
-			if ok {
-				for k := range (*s.outMap)[arg].(map[string]bool) {
-					// merge args' taint
-					s.taintAnalysis.passThrough[len(inst.Results)+i+1][k] = true
-				}
+			for k := range *GetTaint(s.outMap, arg) {
+				// merge args' taint
+				s.taintAnalysis.passThrough[len(inst.Results)+i+1].AddTaint(k)
 			}
 		}
 	} else {
 		for i := 0; i < len(inst.Results); i++ {
 			result := inst.Results[i].Name()
 			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			_, ok := (*s.outMap)[result]
-			if ok {
-				for k := range (*s.outMap)[result].(map[string]bool) {
-					// merge other results' taint
-					s.taintAnalysis.passThrough[i][k] = true
-				}
+			for k := range *GetTaint(s.outMap, result) {
+				// merge other results' taint
+				s.taintAnalysis.passThrough[i].AddTaint(k)
 			}
 		}
 		for i := 0; i < f.Signature.Params().Len(); i++ {
 			arg := f.Signature.Params().At(i).Name()
 			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			_, ok := (*s.outMap)[arg]
-			if ok {
-				for k := range (*s.outMap)[arg].(map[string]bool) {
-					// merge args' taint
-					s.taintAnalysis.passThrough[len(inst.Results)+i][k] = true
-				}
+			for k := range *GetTaint(s.outMap, arg) {
+				// merge args' taint
+				s.taintAnalysis.passThrough[len(inst.Results)+i].AddTaint(k)
 			}
 		}
 	}
@@ -914,277 +568,59 @@ func (s *TaintSwitcher) CaseReturn(inst *ssa.Return) {
 
 // CaseSend accepts a Send instruction
 func (s *TaintSwitcher) CaseSend(inst *ssa.Send) {
-	newTaint := make(map[string]bool)
-	switch x := (inst.X).(type) {
-	case *ssa.Parameter:
-		newTaint[x.Name()] = true
-	case
-		*ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[x.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Chan.Name()] = newTaint
+	PassTaint(s.outMap, inst.Chan.Name(), inst.X.Name())
 }
 
 // CaseSelect accepts a Select instruction
 func (s *TaintSwitcher) CaseSelect(inst *ssa.Select) {
 	// mark variables as "inst.Name().i"
 	// e.g. t2.0, t2.1
-	newTaint := make(map[string]bool)
-	(*s.outMap)[inst.Name()+".0"] = newTaint
-	newTaint1 := make(map[string]bool)
-	(*s.outMap)[inst.Name()+".1"] = newTaint1
+	GetTaintWrapper(s.outMap, inst.Name()+".0")
+	GetTaintWrapper(s.outMap, inst.Name()+".1")
 	for k := range inst.States {
-		newTaint := make(map[string]bool)
-		(*s.outMap)[inst.Name()+"."+strconv.Itoa(k+2)] = newTaint
+		GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(k+2))
 	}
 }
 
 // CaseSlice accepts a Slice instruction
 func (s *TaintSwitcher) CaseSlice(inst *ssa.Slice) {
-	newTaint := make(map[string]bool)
-	// pass underlying array's taint
-	if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Name()] = newTaint
+	PassTaint(s.outMap, inst.Name(), inst.X.Name())
 }
 
 // CaseStore accepts a Store instruction
 func (s *TaintSwitcher) CaseStore(inst *ssa.Store) {
-	newTaint := make(map[string]bool)
 	// Store needs to visit pointer
-	_oldTaint, ok := (*s.outMap)[inst.Addr.Name()]
-	if ok {
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	switch v := inst.Val.(type) {
-	case *ssa.Parameter:
-		newTaint[v.Name()] = true
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		oldTaint := (*s.outMap)[v.Name()].(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	(*s.outMap)[inst.Addr.Name()] = newTaint
-	// if inst.Addr points to struct or slice, update further
-	newTaint2 := make(map[string]bool)
-	switch addr := (inst.Addr).(type) {
-	case *ssa.Global:
+	PassTaint(s.outMap, inst.Addr.Name(), inst.Val.Name())
+	if _, ok := (inst.Addr).(*ssa.Global); ok {
 		// save global anonymous function to initMap
 		if f, ok := (inst.Val).(*ssa.Function); ok {
-			(*s.taintAnalysis.initMap)[addr.String()] = f
-		}
-	case *ssa.FieldAddr:
-		if _, ok := (addr.X).(*ssa.Global); ok {
-			// skip *ssa.Global
-			(*s.outMap)[addr.X.Name()] = newTaint2
-		} else if _, ok := (addr.X).(*ssa.FreeVar); ok {
-			// skip *ssa.FreeVar
-			(*s.outMap)[addr.X.Name()] = newTaint2
-		} else {
-			oldTaint2 := (*s.outMap)[addr.X.Name()].(map[string]bool)
-			for k := range oldTaint2 {
-				newTaint2[k] = true
-			}
-			for k := range newTaint {
-				newTaint2[k] = true
-			}
-			(*s.outMap)[addr.X.Name()] = newTaint2
-			if fieldAddr, ok := addr.X.(*ssa.FieldAddr); ok {
-				// if inst.Addr.X is still a *ssa.FieldAddr, update further
-				newTaint3 := make(map[string]bool)
-				if _oldTaint, ok := (*s.outMap)[fieldAddr.X.Name()]; ok {
-					oldTaint3 := _oldTaint.(map[string]bool)
-					for k := range oldTaint3 {
-						newTaint3[k] = true
-					}
-					for k := range newTaint {
-						newTaint3[k] = true
-					}
-					(*s.outMap)[fieldAddr.X.Name()] = newTaint3
-				}
-			} else if op, ok := addr.X.(*ssa.UnOp); ok {
-				if fieldAddr2, ok := op.X.(*ssa.FieldAddr); ok {
-					// field is a pointer to a struct
-					newTaint4 := make(map[string]bool)
-					if _oldTaint, ok := (*s.outMap)[fieldAddr2.X.Name()]; ok {
-						oldTaint4 := _oldTaint.(map[string]bool)
-						for k := range oldTaint4 {
-							newTaint4[k] = true
-						}
-						for k := range newTaint {
-							newTaint4[k] = true
-						}
-						(*s.outMap)[fieldAddr2.X.Name()] = newTaint4
-					}
-				}
-			}
-		}
-	case *ssa.IndexAddr:
-		if _, ok := (addr.X).(*ssa.Global); ok {
-			// skip *ssa.Global
-			(*s.outMap)[addr.X.Name()] = newTaint2
-		} else if _, ok := (addr.X).(*ssa.FreeVar); ok {
-			// skip *ssa.FreeVar
-			(*s.outMap)[addr.X.Name()] = newTaint2
-		} else {
-			oldTaint2 := (*s.outMap)[addr.X.Name()].(map[string]bool)
-			for k := range oldTaint2 {
-				newTaint2[k] = true
-			}
-			for k := range newTaint {
-				newTaint2[k] = true
-			}
-			(*s.outMap)[addr.X.Name()] = newTaint2
-			// if inst.Addr.X is a *ssa.Slice, update underlying array
-			slice, ok := addr.X.(*ssa.Slice)
-			newTaint3 := make(map[string]bool)
-			if ok {
-				oldTaint3 := (*s.outMap)[slice.X.Name()].(map[string]bool)
-				for k := range oldTaint3 {
-					newTaint3[k] = true
-				}
-				for k := range newTaint {
-					newTaint3[k] = true
-				}
-				(*s.outMap)[slice.X.Name()] = newTaint3
-			}
+			(*s.taintAnalysis.initMap)[inst.Addr.String()] = f
 		}
 	}
+	// if inst.Addr points to struct or slice, update further
+	s.passPointTaint(inst.Addr)
 }
 
 // CaseTypeAssert accepts a TypeAssert instruction
 func (s *TaintSwitcher) CaseTypeAssert(inst *ssa.TypeAssert) {
-	newTaint := make(map[string]bool)
-	if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-		// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
+	// we drop *ssa.Global, *ssa.FreeVar and *ssa.Const
 	if inst.CommaOk {
 		// if needs an ok, mark two variables, and the first one inherits taint
-		(*s.outMap)[inst.Name()+".0"] = newTaint
-		(*s.outMap)[inst.Name()+".1"] = make(map[string]bool)
+		PassTaint(s.outMap, inst.Name()+".0", inst.X.Name())
+		GetTaintWrapper(s.outMap, inst.Name()+".1")
 	} else {
-		(*s.outMap)[inst.Name()] = newTaint
+		PassTaint(s.outMap, inst.Name(), inst.X.Name())
 	}
 }
 
 // CaseUnOp accepts a UnOp instruction
 func (s *TaintSwitcher) CaseUnOp(inst *ssa.UnOp) {
-	newTaint := make(map[string]bool)
-	switch x := (inst.X).(type) {
-	case *ssa.Parameter:
-		if inst.Op == token.ARROW && inst.CommaOk {
-			// if needs an ok, mark two variables, and the first one inherits taint
-			newTaint[x.Name()] = true
-			(*s.outMap)[inst.Name()+".0"] = newTaint
-			(*s.outMap)[inst.Name()+".1"] = make(map[string]bool)
-		} else {
-			newTaint[x.Name()] = true
-			(*s.outMap)[inst.Name()] = newTaint
-		}
-	case *ssa.FreeVar,
-		*ssa.Global:
-		if inst.Op == token.ARROW && inst.CommaOk {
-			// if needs an ok, mark two variables, and the first one inherits taint
-			// although here is no taint ^^ now
-			(*s.outMap)[inst.Name()+".0"] = newTaint
-			(*s.outMap)[inst.Name()+".1"] = make(map[string]bool)
-		} else {
-			(*s.outMap)[inst.Name()] = newTaint
-		}
-	case *ssa.Alloc,
-		*ssa.BinOp,
-		*ssa.Call,
-		*ssa.ChangeType,
-		*ssa.ChangeInterface,
-		*ssa.Convert,
-		*ssa.Extract,
-		*ssa.Field,
-		*ssa.FieldAddr,
-		*ssa.Index,
-		*ssa.IndexAddr,
-		*ssa.Lookup,
-		*ssa.MakeChan,
-		*ssa.MakeInterface,
-		*ssa.MakeMap,
-		*ssa.MakeSlice,
-		*ssa.Next,
-		*ssa.Range,
-		*ssa.Slice,
-		*ssa.TypeAssert,
-		*ssa.UnOp,
-		*ssa.Phi:
-		if inst.Op == token.ARROW && inst.CommaOk {
-			// if needs an ok, mark two variables, and the first one inherits taint
-			oldTaint := (*s.outMap)[x.Name()].(map[string]bool)
-			for k := range oldTaint {
-				newTaint[k] = true
-			}
-			(*s.outMap)[inst.Name()+".0"] = newTaint
-			(*s.outMap)[inst.Name()+".1"] = make(map[string]bool)
-		} else {
-			oldTaint := (*s.outMap)[x.Name()].(map[string]bool)
-			for k := range oldTaint {
-				newTaint[k] = true
-			}
-			(*s.outMap)[inst.Name()] = newTaint
-		}
+	if inst.Op == token.ARROW && inst.CommaOk {
+		// if needs an ok, mark two variables, and the first one inherits taint
+		PassTaint(s.outMap, inst.Name()+".0", inst.X.Name())
+		GetTaintWrapper(s.outMap, inst.Name()+".1")
+	} else {
+		PassTaint(s.outMap, inst.Name(), inst.X.Name())
 	}
 }
 
@@ -1220,44 +656,13 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 
 	passThrough := (*container)[f.String()]
 	n := len(passThrough)
-	newTaints := make([]map[string]bool, 0)
+	newTaints := make([]*TaintWrapper, 0)
 	// for every results
 	for i := 0; i < n; i++ {
-		newTaint := make(map[string]bool)
+		newTaint := NewTaintWrapper()
 		// for every parameter index in passthrough, collect arg's taint
 		for _, p := range passThrough[i] {
-			switch arg := (inst.Call.Args[p]).(type) {
-			case *ssa.Parameter:
-				newTaint[arg.Name()] = true
-			case *ssa.Alloc,
-				*ssa.BinOp,
-				*ssa.Call,
-				*ssa.ChangeType,
-				*ssa.ChangeInterface,
-				*ssa.Convert,
-				*ssa.Extract,
-				*ssa.Field,
-				*ssa.FieldAddr,
-				*ssa.Index,
-				*ssa.IndexAddr,
-				*ssa.Lookup,
-				*ssa.MakeChan,
-				*ssa.MakeInterface,
-				*ssa.MakeMap,
-				*ssa.MakeSlice,
-				*ssa.Next,
-				*ssa.Range,
-				*ssa.Slice,
-				*ssa.TypeAssert,
-				*ssa.UnOp,
-				*ssa.Phi:
-				if _oldTaint, ok := (*s.outMap)[arg.Name()]; ok {
-					oldTaint := _oldTaint.(map[string]bool)
-					for k := range oldTaint {
-						newTaint[k] = true
-					}
-				}
-			}
+			newTaint.InheritTaint(s.outMap, inst.Call.Args[p].Name())
 		}
 		newTaints = append(newTaints, newTaint)
 	}
@@ -1267,133 +672,85 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 			if i == 0 {
 				// update receiver's taint
 				// the receiver may be a pointer, so update further by the pointer
-				(*s.outMap)[inst.Call.Args[0].Name()] = newTaints[i]
+				SetTaintWrapper(s.outMap, inst.Call.Args[0].Name(), newTaints[i])
 				if op, ok := (inst.Call.Args[0]).(*ssa.UnOp); ok {
-					s.passPointTaint(newTaints[i], op.X)
+					PassTaint(s.outMap, op.X.Name(), op.Name())
+					s.passPointTaint(op.X)
 				} else {
-					s.passPointTaint(newTaints[i], inst.Call.Args[0])
+					s.passPointTaint(inst.Call.Args[0])
 				}
 			} else if i < 1+f.Signature.Results().Len() {
 				if f.Signature.Results().Len() == 1 {
 					// if the function has one result
-					(*s.outMap)[inst.Name()] = newTaints[i]
+					SetTaintWrapper(s.outMap, inst.Name(), newTaints[i])
 				} else {
 					// else mark the variables as "inst.Name().X"
 					// e.g. t0.1, t0.2
-					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaints[i]
+					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1), newTaints[i])
 				}
 			} else {
 				// update args' taint
-				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()].Name()] = newTaints[i]
+				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()].Name(), newTaints[i])
 			}
 		} else {
 			// if the function has no receiver
 			if i < f.Signature.Results().Len() {
 				if f.Signature.Results().Len() == 1 {
 					// if the function has one result
-					(*s.outMap)[inst.Name()] = newTaints[i]
+					SetTaintWrapper(s.outMap, inst.Name(), newTaints[i])
 				} else {
 					// else mark the variables as "inst.Name().X"
 					// e.g. t0.1, t0.2
-					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaints[i]
+					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i), newTaints[i])
 				}
 			} else {
 				// update args' taint
-				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()].Name()] = newTaints[i]
+				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()].Name(), newTaints[i])
 			}
 		}
 	}
 }
 
 // passPointTaint passes taint by pointer
-func (s *TaintSwitcher) passPointTaint(newTaint map[string]bool, pointer ssa.Value) {
-	switch inst := (pointer).(type) {
+func (s *TaintSwitcher) passPointTaint(pointer ssa.Value) {
+	switch addr := (pointer).(type) {
+	case *ssa.MakeInterface:
+		// if addr is a *ssa.MakeInterface, try use its addr.X to update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
+	case *ssa.UnOp:
+		// if addr is a *ssa.UnOp, try use its addr.X to update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
 	case *ssa.FieldAddr:
-		newTaint2 := make(map[string]bool)
-		if _, ok := inst.X.(*ssa.Global); ok {
-			(*s.outMap)[inst.X.Name()] = newTaint2
-		} else if _, ok := inst.X.(*ssa.FreeVar); ok {
-			(*s.outMap)[inst.X.Name()] = newTaint2
-		} else {
-			if _oldTaint, ok := (*s.outMap)[inst.X.Name()]; ok {
-				oldTaint := _oldTaint.(map[string]bool)
-				for k := range oldTaint {
-					newTaint2[k] = true
-				}
-			}
-			for k := range newTaint {
-				newTaint2[k] = true
-			}
-			(*s.outMap)[inst.X.Name()] = newTaint2
-		}
+		// if addr is still a *ssa.FieldAddr, update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
 	case *ssa.IndexAddr:
-		if _, ok := (inst.X).(*ssa.Global); ok {
-			// do nothing
-		} else if _, ok := (inst.X).(*ssa.FreeVar); ok {
-			// do nothing
-		} else {
-			oldTaint := (*s.outMap)[inst.X.Name()].(map[string]bool)
-			newTaint2 := make(map[string]bool)
-			for k := range oldTaint {
-				newTaint2[k] = true
-			}
-			for k := range newTaint {
-				newTaint2[k] = true
-			}
-			(*s.outMap)[inst.X.Name()] = newTaint2
-			// if it is a *ssa.Slice, update underlying array
-			slice, ok := inst.X.(*ssa.Slice)
-			if ok {
-				newTaint3 := make(map[string]bool)
-				oldTaint3 := (*s.outMap)[slice.X.Name()].(map[string]bool)
-				for k := range oldTaint3 {
-					newTaint3[k] = true
-				}
-				for k := range newTaint {
-					newTaint3[k] = true
-				}
-				(*s.outMap)[slice.X.Name()] = newTaint3
-			}
-		}
+		// if addr is a *ssa.IndexAddr, update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
+	case *ssa.Slice:
+		// if addr is a *ssa.Slice, update underlying array
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
 	}
 }
 
 // passAppendTaint passes taint by append
 func (s *TaintSwitcher) passAppendTaint(inst *ssa.Call) {
-	newTaint := make(map[string]bool)
+	newTaint := NewTaintWrapper()
 	n := len(inst.Call.Args)
 	for i := 0; i < n; i++ {
 		// collect taint in slices
-		switch arg := (inst.Call.Args[i]).(type) {
-		case
-			// need *ssa.UnOp，may be more other types
-			// e.g. path/path.go Join
-			// buf = append(buf, e...)
-			*ssa.Parameter,
-			*ssa.Phi,
-			*ssa.Slice,
-			*ssa.UnOp:
-			oldTaint := (*s.outMap)[arg.Name()].(map[string]bool)
-			for k := range oldTaint {
-				newTaint[k] = true
-			}
-		}
+		// need *ssa.UnOp，may be more other types
+		// e.g. path/path.go Join
+		// buf = append(buf, e...)
+		newTaint.InheritTaint(s.outMap, inst.Call.Args[i].Name())
 	}
-	(*s.outMap)[inst.Name()] = newTaint
+	SetTaintWrapper(s.outMap, inst.Name(), newTaint)
 	for i := 0; i < n; i++ {
 		// pass taint to every slice
-		newTaint2 := make(map[string]bool)
-		switch arg := (inst.Call.Args[i]).(type) {
-		case
-			*ssa.Parameter,
-			*ssa.Phi,
-			*ssa.Slice,
-			*ssa.UnOp:
-			for k := range newTaint {
-				newTaint2[k] = true
-			}
-			(*s.outMap)[arg.Name()] = newTaint2
-		}
+		PassTaint(s.outMap, inst.Call.Args[i].Name(), inst.Name())
 	}
 }
 
@@ -1433,79 +790,18 @@ func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
 
 	passThrough := (*container)[f.String()]
 	n := len(passThrough)
-	newTaints := make([]map[string]bool, 0)
+	newTaints := make([]*TaintWrapper, 0)
 	for i := 0; i < n; i++ {
-		newTaint := make(map[string]bool)
+		newTaint := NewTaintWrapper()
 		// for every parameter index in passthrough, collect arg's taint
 		for _, p := range passThrough[i] {
 			if p == 0 {
 				// the first arg is inst.Call.Value
-				switch arg := (inst.Call.Value).(type) {
-				case *ssa.Parameter:
-					newTaint[arg.Name()] = true
-				case *ssa.Alloc,
-					*ssa.BinOp,
-					*ssa.Call,
-					*ssa.ChangeType,
-					*ssa.ChangeInterface,
-					*ssa.Convert,
-					*ssa.Extract,
-					*ssa.Field,
-					*ssa.FieldAddr,
-					*ssa.Index,
-					*ssa.IndexAddr,
-					*ssa.Lookup,
-					*ssa.MakeChan,
-					*ssa.MakeInterface,
-					*ssa.MakeMap,
-					*ssa.MakeSlice,
-					*ssa.Next,
-					*ssa.Range,
-					*ssa.Slice,
-					*ssa.TypeAssert,
-					*ssa.UnOp,
-					*ssa.Phi:
-					if _oldTaint, ok := (*s.outMap)[arg.Name()]; ok {
-						oldTaint := _oldTaint.(map[string]bool)
-						for k := range oldTaint {
-							newTaint[k] = true
-						}
-					}
-				}
+				newTaint.InheritTaint(s.outMap, inst.Call.Value.Name())
 			} else {
 				// other args are in inst.Call.Args
-				switch arg := (inst.Call.Args[p-1]).(type) {
-				case *ssa.Parameter:
-					newTaint[arg.Name()] = true
-				case *ssa.Alloc,
-					*ssa.BinOp,
-					*ssa.Call,
-					*ssa.ChangeType,
-					*ssa.ChangeInterface,
-					*ssa.Convert,
-					*ssa.Extract,
-					*ssa.Field,
-					*ssa.FieldAddr,
-					*ssa.Index,
-					*ssa.IndexAddr,
-					*ssa.Lookup,
-					*ssa.MakeChan,
-					*ssa.MakeInterface,
-					*ssa.MakeMap,
-					*ssa.MakeSlice,
-					*ssa.Next,
-					*ssa.Range,
-					*ssa.Slice,
-					*ssa.TypeAssert,
-					*ssa.UnOp,
-					*ssa.Phi:
-					if _oldTaint, ok := (*s.outMap)[arg.Name()]; ok {
-						oldTaint := _oldTaint.(map[string]bool)
-						for k := range oldTaint {
-							newTaint[k] = true
-						}
-					}
-				}
+				newTaint.InheritTaint(s.outMap, inst.Call.Args[p-1].Name())
+
 			}
 		}
 		newTaints = append(newTaints, newTaint)
@@ -1514,25 +810,26 @@ func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
 		if i == 0 {
 			// update receiver's taint
 			// the receiver may be a pointer, so update further by the pointer
-			(*s.outMap)[inst.Call.Value.Name()] = newTaints[i]
+			SetTaintWrapper(s.outMap, inst.Call.Value.Name(), newTaints[i])
 			if op, ok := (inst.Call.Value).(*ssa.UnOp); ok {
-				s.passPointTaint(newTaints[i], op.X)
+				PassTaint(s.outMap, op.X.Name(), op.Name())
+				s.passPointTaint(op.X)
 			} else {
-				s.passPointTaint(newTaints[i], inst.Call.Value)
+				s.passPointTaint(inst.Call.Value)
 			}
 		} else {
 			if i < 1+f.Signature.Results().Len() {
 				if f.Signature.Results().Len() == 1 {
 					// if the function has one result
-					(*s.outMap)[inst.Name()] = newTaints[i]
+					SetTaintWrapper(s.outMap, inst.Name(), newTaints[i])
 				} else {
 					// else mark the variables as "inst.Name().X"
 					// e.g. t0.1, t0.2
-					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaints[i]
+					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1), newTaints[i])
 				}
 			} else {
 				// update args' taint
-				(*s.outMap)[inst.Call.Args[i-f.Signature.Results().Len()-1].Name()] = newTaints[i]
+				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()-1].Name(), newTaints[i])
 			}
 		}
 	}
@@ -1555,26 +852,23 @@ func (s *TaintSwitcher) passNullTaint(f *types.Func, inst *ssa.Call) {
 		(*container)[f.String()] = passThrough
 		n = len(passThrough)
 		for i := 0; i < n; i++ {
-			newTaint := make(map[string]bool)
 			if signature.Recv() != nil {
 				if i == 0 {
 				} else {
 					if n == 2 {
-						(*s.outMap)[inst.Name()] = newTaint
+						GetTaintWrapper(s.outMap, inst.Name())
 					} else {
-						(*s.outMap)[inst.Name()+"."+strconv.Itoa(i-1)] = newTaint
+						GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1))
 					}
 				}
 			} else {
 				if n == 1 {
-					(*s.outMap)[inst.Name()] = newTaint
+					GetTaintWrapper(s.outMap, inst.Name())
 				} else {
-					(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaint
+					GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i))
 				}
 			}
 		}
-		newTaint := make(map[string]bool)
-		(*s.outMap)[inst.Name()] = newTaint
 	}
 }
 
@@ -1602,32 +896,21 @@ func (s *TaintSwitcher) passAnonymousTaint(signature *types.Signature, inst *ssa
 		passThrough = append(passThrough, make([]int, 0))
 	}
 	n = len(passThrough)
-	for i := 0; i < n; i++ {
-		newTaint := make(map[string]bool)
-		if n != 1 {
-			(*s.outMap)[inst.Name()+"."+strconv.Itoa(i)] = newTaint
+	if n == 1 {
+		GetTaintWrapper(s.outMap, inst.Name())
+	} else {
+		for i := 0; i < n; i++ {
+			if n != 1 {
+				GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i))
+			}
 		}
 	}
-	newTaint := make(map[string]bool)
-	(*s.outMap)[inst.Name()] = newTaint
 }
 
 // passCopyTaint pass taint by copy
 func (s *TaintSwitcher) passCopyTaint(inst *ssa.Call) {
-	oldTaint2 := (*s.outMap)[inst.Call.Args[0].Name()].(map[string]bool)
-	newTaint := make(map[string]bool)
-	if _oldTaint, ok := (*s.outMap)[inst.Call.Args[1].Name()]; ok {
-		oldTaint := _oldTaint.(map[string]bool)
-		for k := range oldTaint {
-			newTaint[k] = true
-		}
-	}
-	for k := range oldTaint2 {
-		newTaint[k] = true
-	}
-	(*s.outMap)[inst.Call.Args[0].Name()] = newTaint
-	newTaint2 := make(map[string]bool)
-	(*s.outMap)[inst.Name()] = newTaint2
+	PassTaint(s.outMap, inst.Call.Args[0].Name(), inst.Call.Args[1].Name())
+	GetTaintWrapper(s.outMap, inst.Name())
 }
 
 func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
@@ -1636,26 +919,23 @@ func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
 		return
 	}
 	for i, arg := range inst.Call.Args {
-		if _oldTaint, ok := (*s.outMap)[arg.Name()]; ok {
-			oldTaint := _oldTaint.(map[string]bool)
-			for name := range oldTaint {
-				for k, v := range s.taintAnalysis.Graph.Func.Params {
-					if v.Name() == name {
-						edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: i}
-						key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
-						key2 := f.String() + "#" + strconv.Itoa(i)
-						node := (*callGraph.Nodes)[key]
-						node2 := (*callGraph.Nodes)[key2]
-						if node.IsIntra {
-							if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
-								continue
-							} else {
-								(*callGraph.Edges)[key+"#"+key2] = &edge
-							}
-							node.Out = append(node.Out, &edge)
-							node2.In = append(node2.In, &edge)
-							passProperty(node2, &edge)
+		for name := range *GetTaint(s.outMap, arg.Name()) {
+			for k, v := range s.taintAnalysis.Graph.Func.Params {
+				if v.Name() == name {
+					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: i}
+					key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
+					key2 := f.String() + "#" + strconv.Itoa(i)
+					node := (*callGraph.Nodes)[key]
+					node2 := (*callGraph.Nodes)[key2]
+					if node.IsIntra {
+						if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+							continue
+						} else {
+							(*callGraph.Edges)[key+"#"+key2] = &edge
 						}
+						node.Out = append(node.Out, &edge)
+						node2.In = append(node2.In, &edge)
+						passProperty(node2, &edge)
 					}
 				}
 			}
@@ -1668,12 +948,40 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 	ruler := s.taintAnalysis.ruler
 	callGraph := s.taintAnalysis.callGraph
 	if ok {
-		if _oldTaint, ok := (*s.outMap)[inst.Call.Value.Name()]; ok {
-			oldTaint := _oldTaint.(map[string]bool)
-			for name := range oldTaint {
+		for name := range *GetTaint(s.outMap, inst.Call.Value.Name()) {
+			for k, v := range s.taintAnalysis.Graph.Func.Params {
+				if v.Name() == name {
+					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: 0}
+					key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
+					key2 := f.String() + "#" + strconv.Itoa(0)
+					node := (*callGraph.Nodes)[key]
+					if node.IsIntra {
+						node.Out = append(node.Out, &edge)
+						if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+							continue
+						} else {
+							(*callGraph.Edges)[key+"#"+key2] = &edge
+						}
+						if node2, ok := (*callGraph.Nodes)[key2]; ok {
+							node2.In = append(node2.In, &edge)
+							passProperty(node2, &edge)
+						} else {
+							node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: false, IsMethod: true, IsStatic: false}
+							decidePropertry(node2, ruler)
+							node2.In = append(node2.In, &edge)
+							(*callGraph.Nodes)[f.String()] = node2
+							passProperty(node2, &edge)
+						}
+					}
+				}
+			}
+		}
+		n := signature.Params().Len()
+		for i := 0; i < n; i++ {
+			for name := range *GetTaint(s.outMap, inst.Call.Args[i].Name()) {
 				for k, v := range s.taintAnalysis.Graph.Func.Params {
 					if v.Name() == name {
-						edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: 0}
+						edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: i + 1}
 						key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
 						key2 := f.String() + "#" + strconv.Itoa(0)
 						node := (*callGraph.Nodes)[key]
@@ -1699,40 +1007,6 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 				}
 			}
 		}
-		n := signature.Params().Len()
-		for i := 0; i < n; i++ {
-			if _oldTaint, ok := (*s.outMap)[inst.Call.Args[i].Name()]; ok {
-				oldTaint := _oldTaint.(map[string]bool)
-				for name := range oldTaint {
-					for k, v := range s.taintAnalysis.Graph.Func.Params {
-						if v.Name() == name {
-							edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: i + 1}
-							key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
-							key2 := f.String() + "#" + strconv.Itoa(0)
-							node := (*callGraph.Nodes)[key]
-							if node.IsIntra {
-								node.Out = append(node.Out, &edge)
-								if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
-									continue
-								} else {
-									(*callGraph.Edges)[key+"#"+key2] = &edge
-								}
-								if node2, ok := (*callGraph.Nodes)[key2]; ok {
-									node2.In = append(node2.In, &edge)
-									passProperty(node2, &edge)
-								} else {
-									node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: false, IsMethod: true, IsStatic: false}
-									decidePropertry(node2, ruler)
-									node2.In = append(node2.In, &edge)
-									(*callGraph.Nodes)[f.String()] = node2
-									passProperty(node2, &edge)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 }
 
@@ -1741,32 +1015,29 @@ func (s *TaintSwitcher) collectSignatureEdges(signature *types.Signature, inst *
 	callGraph := s.taintAnalysis.callGraph
 	n := signature.Params().Len()
 	for i := 0; i < n; i++ {
-		if _oldTaint, ok := (*s.outMap)[inst.Call.Args[i].Name()]; ok {
-			oldTaint := _oldTaint.(map[string]bool)
-			for name := range oldTaint {
-				for k, v := range s.taintAnalysis.Graph.Func.Params {
-					if v.Name() == name {
-						edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: signature.String(), ToIndex: i}
-						key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
-						key2 := signature.String() + "#" + strconv.Itoa(0)
-						node := (*callGraph.Nodes)[key]
-						if node.IsIntra {
-							node.Out = append(node.Out, &edge)
-							if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
-								continue
-							} else {
-								(*callGraph.Edges)[key+"#"+key2] = &edge
-							}
-							if node2, ok := (*callGraph.Nodes)[key2]; ok {
-								node2.In = append(node2.In, &edge)
-								passProperty(node2, &edge)
-							} else {
-								node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: true, IsMethod: false, IsStatic: false}
-								decidePropertry(node2, ruler)
-								node2.In = append(node2.In, &edge)
-								(*callGraph.Nodes)[signature.String()] = node2
-								passProperty(node2, &edge)
-							}
+		for name := range *GetTaint(s.outMap, inst.Call.Args[i].Name()) {
+			for k, v := range s.taintAnalysis.Graph.Func.Params {
+				if v.Name() == name {
+					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: signature.String(), ToIndex: i}
+					key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
+					key2 := signature.String() + "#" + strconv.Itoa(0)
+					node := (*callGraph.Nodes)[key]
+					if node.IsIntra {
+						node.Out = append(node.Out, &edge)
+						if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+							continue
+						} else {
+							(*callGraph.Edges)[key+"#"+key2] = &edge
+						}
+						if node2, ok := (*callGraph.Nodes)[key2]; ok {
+							node2.In = append(node2.In, &edge)
+							passProperty(node2, &edge)
+						} else {
+							node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: true, IsMethod: false, IsStatic: false}
+							decidePropertry(node2, ruler)
+							node2.In = append(node2.In, &edge)
+							(*callGraph.Nodes)[signature.String()] = node2
+							passProperty(node2, &edge)
 						}
 					}
 				}

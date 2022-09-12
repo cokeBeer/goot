@@ -69,8 +69,13 @@ package main
 import "github.com/cokeBeer/goot/pkg/example/dataflow/taint"
 
 func main() {
-	runner := taint.NewRunner("path-to-your-project")
-	runner.ModuleName = "your-module-name"
+	// if this file is cmd/taint/main.go
+	// and you want analyse package pkg
+	// the path should be "../../pkg"
+	// or "../../pkg..." for all packages under pkg
+	runner := taint.NewRunner("relative/path/to/package")
+	// for this project, is "github.com/cokeBeer/goot"
+	runner.ModuleName = "module-name"
 	runner.PassThroughSrcPath = ""
 	runner.PassThroughDstPath = "passthrough.json"
 	runner.CallGraphDstPath = "callgraph.json"
@@ -80,17 +85,16 @@ func main() {
 	runner.Run()
 }
 ```
-Here is an [example](cmd/taintanalysis/main.go) of what the args should be. It shows how to analyse the `pkg` package in `github.com/cokeBeer/goot`\
 Run the code, and you will get a `passthrough.json` in the same directory, which contains taint passthrough information of all functions in your project\
-You can see key `fmt.Sprintf` holds the value `[[0,1]]`
+You can see key `fmt.Sprintf` holds the value `[[0,1],[0],[1]]`
 ```json
 {
     "fmt.Sprintf": [
-        [0, 1]
+        [0, 1], [0], [1]
     ]
 }
 ```
-This means the first parameter's taint and the second parameter's taint are passed to the first return value\
+This means the first parameter's taint and the second parameter's taint are passed to the first return value, the first parameter receives the first parameter's taint and the second parameter receives the second parameter's taint\
 Also, you will get a `callgraph.json` in the same directory\
 You can see the json file contains taint edges from one call parameter to another call parameter
 ```json
