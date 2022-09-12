@@ -23,6 +23,7 @@ type Runner struct {
 	Neo4jPassword      string
 	Neo4jURI           string
 	TargetFunc         string
+	PassBack           bool
 }
 
 // NewRunner returns a *taint.Runner
@@ -32,7 +33,7 @@ func NewRunner(PkgPath ...string) *Runner {
 		CallGraphDstPath: "", Ruler: nil,
 		Debug: false, InitOnly: false, PassThroughOnly: false,
 		PersistToNeo4j: false, Neo4jURI: "", Neo4jUsername: "", Neo4jPassword: "",
-		TargetFunc: ""}
+		TargetFunc: "", PassBack: false}
 }
 
 // Run kick off an analysis
@@ -84,7 +85,8 @@ func (r *Runner) Run() error {
 		Ruler:              ruler,
 		PassThroughOnly:    r.PassThroughOnly,
 		Debug:              r.Debug,
-		TargetFunc:         r.TargetFunc}
+		TargetFunc:         r.TargetFunc,
+		PassBack:           r.PassBack}
 
 	for f := range funcs {
 		if f.Name() == "init" {

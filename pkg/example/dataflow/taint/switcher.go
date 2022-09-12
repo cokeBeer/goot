@@ -716,6 +716,18 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 // passPointTaint passes taint by pointer
 func (s *TaintSwitcher) passPointTaint(pointer ssa.Value) {
 	switch addr := (pointer).(type) {
+	case *ssa.TypeAssert:
+		// if addr is a *ssa.TypeAssert, try use its addr.X to update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
+	case *ssa.ChangeType:
+		// if addr is a *ssa.ChangeType, try use its addr.X to update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
+	case *ssa.ChangeInterface:
+		// if addr is a *ssa.ChangeInterface, try use its addr.X to update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
 	case *ssa.MakeInterface:
 		// if addr is a *ssa.MakeInterface, try use its addr.X to update further
 		PassTaint(s.outMap, addr.X.Name(), addr.Name())

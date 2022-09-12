@@ -48,6 +48,7 @@ func NewCallGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *CallGraph
 
 // Node represents a taint node
 type Node struct {
+	Function    *ssa.Function
 	IsSignature bool
 	IsMethod    bool
 	IsStatic    bool

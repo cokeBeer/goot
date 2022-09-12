@@ -1,5 +1,6 @@
 package taint
 
+// TaintWrapper represents a wrapper of taint
 type TaintWrapper struct {
 	innerTaint *map[string]bool
 }

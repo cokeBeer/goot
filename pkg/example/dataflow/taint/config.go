@@ -16,6 +16,7 @@ type TaintConfig struct {
 	PassThroughOnly      bool
 	TargetFunc           string
 	Debug                bool
+	PassBack             bool
 }
 
 // PrintBody represents the name of the function should be printed
