@@ -12,13 +12,13 @@ func main() {
 	runner := taint.NewRunner("../../pkg...")
 	// the module name is the name defined in go.mod
 	runner.ModuleName = "github.com/cokeBeer/goot"
-	runner.PassThroughSrcPath = []string{}
+	runner.PassThroughSrcPath = []string{"gostd1.19.json"}
 	runner.PassThroughDstPath = "passthrough.json"
 	runner.CallGraphDstPath = "callgraph.json"
-	runner.PassThroughOnly = true
+	runner.PassThroughOnly = false
 	runner.InitOnly = false
 	runner.Debug = true
-	runner.PersistToNeo4j = false
+	runner.PersistToNeo4j = true
 	runner.Neo4jURI = "bolt://localhost:7687"
 	runner.Neo4jUsername = "neo4j"
 	runner.Neo4jPassword = "password"

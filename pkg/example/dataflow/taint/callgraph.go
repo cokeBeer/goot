@@ -28,7 +28,7 @@ func NewCallGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *CallGraph
 			(*callGraph.Nodes)[f.String()+"#"+strconv.Itoa(0)] = node
 			n := f.Signature.Params().Len()
 			for i := 0; i < n; i++ {
-				node := &Node{Canonical: f.String(), Index: i + 1, Out: make([]*Edge, 0), In: make([]*Edge, 0)}
+				node := &Node{Function: f, Canonical: f.String(), Index: i + 1, Out: make([]*Edge, 0), In: make([]*Edge, 0)}
 				decidePropertry(node, ruler)
 				node.IsStatic = true
 				(*callGraph.Nodes)[f.String()+"#"+strconv.Itoa(i+1)] = node
@@ -36,7 +36,7 @@ func NewCallGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *CallGraph
 		} else {
 			n := f.Signature.Params().Len()
 			for i := 0; i < n; i++ {
-				node := &Node{Canonical: f.String(), Index: i, Out: make([]*Edge, 0), In: make([]*Edge, 0)}
+				node := &Node{Function: f, Canonical: f.String(), Index: i, Out: make([]*Edge, 0), In: make([]*Edge, 0)}
 				decidePropertry(node, ruler)
 				node.IsStatic = true
 				(*callGraph.Nodes)[f.String()+"#"+strconv.Itoa(i)] = node

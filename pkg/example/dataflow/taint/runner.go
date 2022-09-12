@@ -63,7 +63,7 @@ func (r *Runner) Run() error {
 	if r.Ruler != nil {
 		ruler = r.Ruler
 	} else {
-		ruler = &DummyRuler{*rule.New(r.ModuleName)}
+		ruler = NewDummyRuler(r.ModuleName)
 	}
 	callGraph := NewCallGraph(&funcs, ruler)
 

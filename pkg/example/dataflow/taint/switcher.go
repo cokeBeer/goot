@@ -957,6 +957,7 @@ func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
 	}
 }
 
+// collectMethodsEdges records node only use type information
 func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 	signature, ok := f.Type().(*types.Signature)
 	ruler := s.taintAnalysis.ruler
@@ -1024,6 +1025,7 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 	}
 }
 
+// collectSignatureEdges records node only use signature information
 func (s *TaintSwitcher) collectSignatureEdges(signature *types.Signature, inst *ssa.Call) {
 	ruler := s.taintAnalysis.ruler
 	callGraph := s.taintAnalysis.callGraph

@@ -9,8 +9,8 @@ type BaseRuler struct {
 	moduleName []string
 }
 
-// New returns a BaseRuler
-func New(moduleName ...string) *BaseRuler {
+// NewBaseRuler returns a BaseRuler
+func NewBaseRuler(moduleName ...string) *BaseRuler {
 	baseRuler := new(BaseRuler)
 	baseRuler.moduleName = moduleName
 	return baseRuler

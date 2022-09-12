@@ -55,11 +55,15 @@ func PersistToNeo4j(nodes *map[string]*Node, edges *map[string]*Edge, uri string
 	for _, node := range *nodes {
 		id := strconv.FormatUint(maphash.String(seed, node.Canonical+strconv.Itoa(node.Index)), 10)
 		_, err = session.WriteTransaction(func(transaction neo4j.Transaction) (any, error) {
-			if node.IsSink {
+			if node.IsSource && node.IsIntra && len(node.Out) != 0 {
+				_, _ = transaction.Run(
+					"CREATE (node:Source) SET node={id:$Id, name:$Canonical, index:$Index}",
+					map[string]any{"Id": id, "Canonical": node.Canonical, "Index": node.Index})
+			} else if node.IsSink && len(node.In) != 0 {
 				_, _ = transaction.Run(
 					"CREATE (node:Sink) SET node={id:$Id, name:$Canonical, index:$Index}",
 					map[string]any{"Id": id, "Canonical": node.Canonical, "Index": node.Index})
-			} else if node.IsIntra {
+			} else if node.IsIntra && len(node.In)+len(node.Out) != 0 {
 				_, _ = transaction.Run(
 					"CREATE (node:Intra) SET node={id:$Id, name:$Canonical, index:$Index}",
 					map[string]any{"Id": id, "Canonical": node.Canonical, "Index": node.Index})
