@@ -20,8 +20,15 @@ func (r *DummyRuler) IsSource(_f any) bool {
 	case *Node:
 		if node.Function != nil {
 			f := node.Function
-			if len(f.Params) == 2 {
-				if f.Params[0].Type().String() == "net/http.ResponseWriter" && f.Params[1].Type().String() == "*net/http.Request" {
+			hit := 0
+			for _, param := range f.Params {
+				if param.Type().String() == "net/http.ResponseWriter" {
+					hit++
+				}
+				if param.Type().String() == "*net/http.Request" {
+					hit++
+				}
+				if hit >= 2 {
 					return true
 				}
 			}
