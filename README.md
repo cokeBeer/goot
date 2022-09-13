@@ -32,7 +32,7 @@ go get -u github.com/cokeBeer/goot
 ```
 
 ##  Use taint analysis
-Write code below in your project
+Write code below in your project, e.g `cmd/taint/main.go`
 ```go
 package main
 
