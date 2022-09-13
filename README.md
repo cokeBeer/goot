@@ -71,9 +71,9 @@ The rule is
 ```json
 {
 	"function name": [ 
-		["receiver taint"],
-		["result taint"],
-		["param taint"] 
+		["receiver taint"], # 0 or 1
+		["result taint"],	# 0 or many
+		["param taint"] 	# 0 or many
 	]
 }
 ```
@@ -118,11 +118,11 @@ Using query below to find taint paths
 ```
 MATCH (source:Source),(sink:Sink {name:"os/exec.CommandContext"}),p=(source)-[*7]->(sink) RETURN p
 ```
-We can get a graph like this: (the red nodes are sink, the brown nodes are intra function and the green nodes are source)
+We can get a graph like this: (the red nodes are sink, the brown nodes are intra functions and the green nodes are source)
 ![](assets/images/workhorse.png)
-Which reveals two taint paths from source to `os/exec.CommandContext`, the same as [CVE-2021-22225](https://hackerone.com/reports/1154542)
+Which reveals two taint paths from source to sink `os/exec.CommandContext`, the same as [CVE-2021-22225](https://hackerone.com/reports/1154542)
 ## Use as a framework
-To use goot as a framework,  first create two structs implementing  `pkg/toolkits/scalar.FlowAnalysis` interface
+To use goot as a framework, first create two structs implementing  `pkg/toolkits/scalar.FlowAnalysis` interface
 
 ```go
 // FlowAnalysis represents a flow analysis

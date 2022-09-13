@@ -1,6 +1,6 @@
 # Constant Propagation Analysis
-Use the main.go to have a try\
-Below is the output of main.go\
+Use the `main.go` to have a try\
+Below is the output of `main.go`\
 The first part is the SSA format of the source code and the second part is the constant propagation on SSA
 ```
 # Name: constantpropagtionanalysis.Hello
