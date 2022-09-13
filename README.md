@@ -56,9 +56,9 @@ You can see key `fmt.Sprintf` holds the value `[[0,1],[0],[1]]`
 ```json
 {
     "fmt.Sprintf": [
-        [0, 1], // return value's taint
-		[0], // first parameter's taint
-		[1]	// second parameter's taint
+        [0, 1], # return value's taint
+	[0],    # first parameter's taint
+	[1]	# second parameter's taint
     ]
 }
 ```
