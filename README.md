@@ -72,8 +72,8 @@ The rule is
 {
 	"function name": [ 
 		["receiver taint"], # 0 or 1
-		["result taint"],	# 0 or many
-		["param taint"] 	# 0 or many
+		["result taint"],   # 0 or many
+		["param taint"]     # 0 or many
 	]
 }
 ```
