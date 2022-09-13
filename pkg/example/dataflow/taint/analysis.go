@@ -40,7 +40,7 @@ func Run(f *ssa.Function, c *TaintConfig) {
 		return
 	}
 
-	if f.Name() == c.TargetFunc {
+	if f.String() == c.TargetFunc {
 		f.WriteTo(os.Stdout)
 	}
 

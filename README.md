@@ -8,8 +8,8 @@
 	- [What is goot?](#what-is-goot)
 	- [Get started](#get-started)
 	- [Use taint analysis](#use-taint-analysis)
+	- [Save to neo4j](#save-to-neo4j)
 	- [Use as a framework](#use-as-a-framework)
-	- [Presentation](#presentation)
 	- [Tips](#tips)
 	- [Thanks](#thanks)
 ## What is goot?
@@ -20,47 +20,17 @@ Currently, goot provides the following major analysis components (and more analy
 
 - Control/Data-flow analysis framework
   - Control-flow graph construction
-  - Classic data-flow analyses, e.g., constant propagtion analysis, taint passthrough analysis
+  - Classic data-flow analyses, e.g. taint analysis
   - Your dataflow analyses
 
 ## Get started
 
-First intall goot by
+Intall goot by
 
 ```
 go get -u github.com/cokeBeer/goot
 ```
 
-Then you can copy examples from package `cmd` to your project \
-For example, copy `cmd/constantpropagationanalysis`
-```go
-package main
-
-import (
-	"github.com/cokeBeer/goot/pkg/example/dataflow/constantpropagation"
-)
-
-const src = `package main
-
-func Hello(a int, b int) bool {
-	a = 1
-	x := a + 3
-	y := b + 2
-	if x > y {
-		x = x + 1
-	} else {
-		x = y + 1
-	}
-	w := x > 0
-	return w
-}`
-
-func main() {
-	runner := &constantpropagation.Runner{Src: src, Function: "Hello"}
-	runner.Run()
-}
-```
-Run the code, and you will get a constant propagtion analysis [result](#presentation) output to console
 ##  Use taint analysis
 Write code below in your project
 ```go
@@ -70,18 +40,14 @@ import "github.com/cokeBeer/goot/pkg/example/dataflow/taint"
 
 func main() {
 	// if this file is cmd/taint/main.go
-	// and you want analyse package pkg
+	// and you want to analyse package pkg
 	// the path should be "../../pkg"
 	// or "../../pkg..." for all packages under pkg
 	runner := taint.NewRunner("relative/path/to/package")
 	// for this project, is "github.com/cokeBeer/goot"
 	runner.ModuleName = "module-name"
-	runner.PassThroughSrcPath = ""
 	runner.PassThroughDstPath = "passthrough.json"
 	runner.CallGraphDstPath = "callgraph.json"
-	runner.PassThroughOnly = false
-	runner.InitOnly = false
-	runner.Debug = true
 	runner.Run()
 }
 ```
@@ -90,17 +56,33 @@ You can see key `fmt.Sprintf` holds the value `[[0,1],[0],[1]]`
 ```json
 {
     "fmt.Sprintf": [
-        [0, 1], [0], [1]
+        [0, 1], // return value's taint
+		[0], // first parameter's taint
+		[1]	// second parameter's taint
     ]
 }
 ```
-This means the first parameter's taint and the second parameter's taint are passed to the first return value, the first parameter receives the first parameter's taint and the second parameter receives the second parameter's taint\
+This means three things
+- the first parameter's taint and the second parameter's taint are passed to the first return value,
+- the first parameter receives the first parameter's taint
+- the second parameter receives the second parameter's taint
+
+The rule is 
+```json
+{
+	"function name": [ 
+		["receiver taint"],
+		["result taint"],
+		["param taint"] 
+	]
+}
+```
 Also, you will get a `callgraph.json` in the same directory\
 You can see the json file contains taint edges from one call parameter to another call parameter
 ```json
 {
-    "(*github.com/cokeBeer/goot/pkg/bench.cleaner).startProcessing#0#(*os/exec.Cmd).StdoutPipe#0": {
-        "From": "(*github.com/cokeBeer/goot/pkg/bench.cleaner).startProcessing",
+    "(*github.com/example/runnner.Runner).RunCmd#0#(*os/exec.Cmd).StdoutPipe#0": {
+        "From": "(*github.com/example/runnner.Runner).RunCmd",
         "FromIndex": 0,
         "To": "(*os/exec.Cmd).StdoutPipe",
         "ToIndex": 0,
@@ -111,9 +93,34 @@ You can see the json file contains taint edges from one call parameter to anothe
     }
 }
 ```
-This means there is a taint edge from position `0` of `startProcessing` (in this case, the parameter is the receiver `bench.cleaner` itself ) to position `0` of `StdoutPipe` (in this case, the parameter is ther recevier `exec.Cmd` iteself, too)
+This means there is a taint edge from position `0` of `RunCmd` (in this case, the parameter is the receiver `runner.Runner` itself ) to position `0` of `StdoutPipe` (in this case, the parameter is ther recevier `exec.Cmd` iteself, too)
 
-
+## Save to neo4j
+To view taint edges better, you can load them to neo4j by set these parameters (for more detailed options, see [options of runner](pkg/example/dataflow/taint/README.md))
+```go
+func main() {
+	runner := taint.NewRunner("../../internal...")
+	runner.ModuleName = "gitlab.com/gitlab-org/gitlab-workhorse"
+	// parameters about neo4j
+	runner.PersistToNeo4j = true
+	runner.Neo4jURI = "bolt://localhost:7687"
+	runner.Neo4jUsername = "neo4j"
+	runner.Neo4jPassword = "password"
+	err := runner.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+When analysis is end, you can find nodes and taint edges in your neo4j database\
+For example, we run taint analysis on [gitlab.com/gitlab-org/gitlab-workhorse@v13.10.0](https://gitlab.com/gitlab-org/gitlab/-/tree/v13.10.0-ee/workhorse)，which has a RCE vulnerability [CVE-2021-22225](https://hackerone.com/reports/1154542)\
+Using query below to find taint paths
+```
+MATCH (source:Source),(sink:Sink {name:"os/exec.CommandContext"}),p=(source)-[*7]->(sink) RETURN p
+```
+We can get a graph like this: (the red nodes are sink, the brown nodes are intra function and the green nodes are source)
+![](assets/images/workhorse.png)
+Which reveals two taint paths from source to `os/exec.CommandContext`, the same as [CVE-2021-22225](https://hackerone.com/reports/1154542)
 ## Use as a framework
 To use goot as a framework,  first create two structs implementing  `pkg/toolkits/scalar.FlowAnalysis` interface
 
@@ -174,70 +181,9 @@ type ConstantPropagationSwitcher struct {
 }
 ```
 
-These can make you focus on the core methods you really need to design carefully in specific analyses
+These can make you focus on the core methods you really need to design carefully in specific analyses\
+You can learn more information about **how to use goot as a framework** and **how to run an analysis** from a tiny example I prepared for you in [how to use](pkg/example/dataflow/constantpropagation) and [how to run](cmd/constantpropagationanalysis/) which demonstrates a `constant propagation analysis`
 
-Some examples can be found in `pkg/example/dataflow` package
-
-And you can learn **how to run** an analysis from  `cmd` package
-
-## Presentation
-
-This is the output of `cmd/constantpropagationanalysis`\
-The first part is the SSA format of the source code and the second part is the constant propagation on SSA
-```
-# Name: constantpropagtionanalysis.Hello
-# Package: constantpropagtionanalysis
-# Location: 3:6
-func Hello(a int, b int) bool:
-0:                                                                entry P:0 S:2
-        t0 = 1:int + 3:int                                                  int
-        t1 = b + 2:int                                                      int
-        t2 = t0 > t1                                                       bool
-        if t2 goto 1 else 3
-1:                                                              if.then P:1 S:1
-        t3 = t0 + 1:int                                                     int
-        jump 2
-2:                                                              if.done P:2 S:0
-        t4 = phi [1: t3, 3: t6] #x                                          int
-        t5 = t4 > 0:int                                                    bool
-        return t5
-3:                                                              if.else P:1 S:1
-        t6 = t1 + 1:int                                                     int
-        jump 2
-
-constant fact for instruction: 1:int + 3:int
-a=UNDEF b=UNDEF t0=4 
-
-constant fact for instruction: b + 2:int
-a=UNDEF b=UNDEF t0=4 t1=UNDEF 
-
-constant fact for instruction: t0 > t1
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF 
-
-constant fact for instruction: if t2 goto 1 else 3
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF 
-
-constant fact for instruction: t1 + 1:int
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t6=UNDEF 
-
-constant fact for instruction: jump 2
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t6=UNDEF 
-
-constant fact for instruction: t0 + 1:int
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 
-
-constant fact for instruction: jump 2
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 
-
-constant fact for instruction: phi [1: t3, 3: t6] #x
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 t4=5 t6=UNDEF 
-
-constant fact for instruction: t4 > 0:int
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 t4=5 t5=NAC t6=UNDEF 
-
-constant fact for instruction: return t5
-a=UNDEF b=UNDEF t0=4 t1=UNDEF t2=UNDEF t3=5 t4=5 t5=NAC t6=UNDEF 
-```
 
 ## Tips
 

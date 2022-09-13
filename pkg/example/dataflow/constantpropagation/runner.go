@@ -20,6 +20,13 @@ type Runner struct {
 	Function string
 }
 
+func NewRunner(src string, function string) *Runner {
+	runner := new(Runner)
+	runner.Src = src
+	runner.Function = function
+	return runner
+}
+
 // Run kick off the analysis
 func (r *Runner) Run() {
 	// Generate ast

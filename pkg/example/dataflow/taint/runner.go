@@ -97,7 +97,7 @@ func (r *Runner) Run() error {
 	if !r.InitOnly {
 		for f := range funcs {
 			if f.String() != "init" {
-				if r.TargetFunc != "" && f.Name() != r.TargetFunc {
+				if r.TargetFunc != "" && f.String() != r.TargetFunc {
 					continue
 				}
 				Run(f, c)

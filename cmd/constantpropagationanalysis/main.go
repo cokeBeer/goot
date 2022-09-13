@@ -20,6 +20,6 @@ func Hello(a int, b int) bool {
 }`
 
 func main() {
-	runner := &constantpropagation.Runner{Src: src, Function: "Hello"}
+	runner := constantpropagation.NewRunner(src, "Hello")
 	runner.Run()
 }
