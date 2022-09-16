@@ -45,8 +45,14 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 						// invoke
 						s.passMethodTaint(edge.Callee.Func, inst)
 					} else {
-						// anonymous function
-						s.passStaticCallTaint(edge.Callee.Func, inst)
+						f := edge.Callee.Func
+						if f.Signature.Recv() != nil {
+							// anonymous function points to a interface method closure
+							s.passMethodTaint(f, inst)
+						} else {
+							// anonymous function
+							s.passStaticCallTaint(edge.Callee.Func, inst)
+						}
 					}
 					return
 				}
