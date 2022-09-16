@@ -19,12 +19,6 @@ type TaintConfig struct {
 	PassBack             bool
 }
 
-// PrintBody represents the name of the function should be printed
-const PrintBody = ""
-
-// Store represents the path of the passthrough data
-const Store = "gostd.json"
-
 // Gostd reprents all go standard library's PkgPath
 var Gostd = []string{"archive...", "bufio...", "builtin...", "bytes...",
 	"compress...", "container...", "context...", "crypto...",
