@@ -2,6 +2,7 @@ package taint
 
 import (
 	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
+	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -11,7 +12,8 @@ type TaintConfig struct {
 	InitMap              *map[string]*ssa.Function
 	History              *map[string]bool
 	InterfaceHierarchy   *InterfaceHierarchy
-	CallGraph            *CallGraph
+	TaintGraph           *TaintGraph
+	CallGraph            *callgraph.Graph
 	Ruler                rule.Ruler
 	PassThroughOnly      bool
 	TargetFunc           string

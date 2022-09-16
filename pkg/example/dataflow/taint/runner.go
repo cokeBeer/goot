@@ -2,7 +2,9 @@ package taint
 
 import (
 	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
+	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -11,12 +13,13 @@ import (
 type Runner struct {
 	ModuleName         string
 	PkgPath            []string
+	UsePointerAnalysis bool
 	Debug              bool
 	InitOnly           bool
 	PassThroughOnly    bool
 	PassThroughSrcPath []string
 	PassThroughDstPath string
-	CallGraphDstPath   string
+	TaintGraphDstPath  string
 	Ruler              rule.Ruler
 	PersistToNeo4j     bool
 	Neo4jUsername      string
@@ -30,10 +33,11 @@ type Runner struct {
 func NewRunner(PkgPath ...string) *Runner {
 	return &Runner{PkgPath: PkgPath, ModuleName: "",
 		PassThroughSrcPath: nil, PassThroughDstPath: "",
-		CallGraphDstPath: "", Ruler: nil,
+		TaintGraphDstPath: "", Ruler: nil,
 		Debug: false, InitOnly: false, PassThroughOnly: false,
 		PersistToNeo4j: false, Neo4jURI: "", Neo4jUsername: "", Neo4jPassword: "",
-		TargetFunc: "", PassBack: false}
+		TargetFunc: "", PassBack: false,
+		UsePointerAnalysis: false}
 }
 
 // Run kick off an analysis
@@ -59,13 +63,39 @@ func (r *Runner) Run() error {
 	funcs := ssautil.AllFunctions(prog)
 
 	interfaceHierarchy := NewInterfaceHierarchy(&funcs)
+
+	var callGraph *callgraph.Graph
+	if r.UsePointerAnalysis {
+		mainPkgs := make([]*ssa.Package, 0)
+		for _, pkg := range initial {
+			mainPkg := prog.Package(pkg.Types)
+			if mainPkg != nil && mainPkg.Pkg.Name() == "main" && mainPkg.Func("main") != nil {
+				mainPkgs = append(mainPkgs, mainPkg)
+			}
+		}
+		if len(mainPkgs) == 0 {
+			return new(NoMainPkgError)
+		}
+		config := &pointer.Config{
+			Mains:          mainPkgs,
+			BuildCallGraph: true,
+		}
+
+		result, err := pointer.Analyze(config)
+		if err != nil {
+			return err
+		}
+		callGraph = result.CallGraph
+		callGraph.DeleteSyntheticNodes()
+	}
+
 	var ruler rule.Ruler
 	if r.Ruler != nil {
 		ruler = r.Ruler
 	} else {
 		ruler = NewDummyRuler(r.ModuleName)
 	}
-	callGraph := NewCallGraph(&funcs, ruler)
+	taintGraph := NewTaintGraph(&funcs, ruler)
 
 	passThroughContainter := make(map[string][][]int)
 	if r.PassThroughSrcPath != nil {
@@ -79,6 +109,7 @@ func (r *Runner) Run() error {
 		InitMap:            &initMap,
 		History:            &history,
 		InterfaceHierarchy: interfaceHierarchy,
+		TaintGraph:         taintGraph,
 		CallGraph:          callGraph,
 		Ruler:              ruler,
 		PassThroughOnly:    r.PassThroughOnly,
@@ -106,11 +137,11 @@ func (r *Runner) Run() error {
 	if r.PassThroughDstPath != "" {
 		PersistPassThrough(&passThroughContainter, r.PassThroughDstPath)
 	}
-	if r.CallGraphDstPath != "" {
-		PersistCallGraph(callGraph.Edges, r.CallGraphDstPath)
+	if r.TaintGraphDstPath != "" {
+		PersistCallGraph(taintGraph.Edges, r.TaintGraphDstPath)
 	}
 	if !r.PassThroughOnly && r.PersistToNeo4j {
-		PersistToNeo4j(callGraph.Nodes, callGraph.Edges, r.Neo4jURI, r.Neo4jUsername, r.Neo4jPassword)
+		PersistToNeo4j(taintGraph.Nodes, taintGraph.Edges, r.Neo4jURI, r.Neo4jUsername, r.Neo4jPassword)
 	}
 	return nil
 }

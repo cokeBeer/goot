@@ -7,15 +7,15 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-// CallGraph represents a graph contain static call nodes and edges
-type CallGraph struct {
+// TaintGraph represents a graph contain static call nodes and edges
+type TaintGraph struct {
 	Nodes *map[string]*Node
 	Edges *map[string]*Edge
 }
 
-// NewCallGraph returns a CallGraph
-func NewCallGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *CallGraph {
-	callGraph := new(CallGraph)
+// NewTaintGraph returns a TaintGraph
+func NewTaintGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *TaintGraph {
+	callGraph := new(TaintGraph)
 	nodes := make(map[string]*Node)
 	edges := make(map[string]*Edge)
 	callGraph.Nodes = &nodes

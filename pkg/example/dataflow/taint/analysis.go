@@ -11,6 +11,7 @@ import (
 	"github.com/cokeBeer/goot/pkg/dataflow/toolkits/solver"
 	"github.com/cokeBeer/goot/pkg/dataflow/util/entry"
 	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
+	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -22,8 +23,7 @@ type TaintAnalysis struct {
 	config               *TaintConfig
 	passThroughContainer *map[string][][]int
 	initMap              *map[string]*ssa.Function
-	interfaceHierarchy   *InterfaceHierarchy
-	callGraph            *CallGraph
+	callGraph            *callgraph.Graph
 	ruler                rule.Ruler
 }
 
@@ -105,8 +105,6 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	taintAnalysis.passThroughContainer = c.PassThroughContainer
 	taintAnalysis.initMap = c.InitMap
 	taintAnalysis.passThrough = make([]*TaintWrapper, 0)
-	taintAnalysis.interfaceHierarchy = c.InterfaceHierarchy
-	taintAnalysis.callGraph = c.CallGraph
 	taintAnalysis.ruler = c.Ruler
 	f := taintAnalysis.Graph.Func
 

@@ -34,6 +34,26 @@ func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 	c := s.taintAnalysis.config
 	container := c.PassThroughContainer
 	init := s.taintAnalysis.initMap
+	// try to use pointer analysis to select callee
+	callGraph := s.taintAnalysis.config.CallGraph
+	if callGraph != nil && inst.Common().StaticCallee() == nil {
+		node := callGraph.Nodes[inst.Parent()]
+		if node != nil {
+			for _, edge := range node.Out {
+				if edge.Site == inst {
+					if inst.Call.Method != nil {
+						// invoke
+						s.passMethodTaint(edge.Callee.Func, inst)
+					} else {
+						// anonymous function
+						s.passStaticCallTaint(edge.Callee.Func, inst)
+					}
+					return
+				}
+			}
+		}
+	}
+	// try to use CHA to select callee
 	switch v := (inst.Call.Value).(type) {
 	case *ssa.Field:
 		// caller can be a field from a struct
@@ -774,7 +794,7 @@ func (s *TaintSwitcher) passInvokeTaint(f *types.Func, inst *ssa.Call) {
 	if !s.taintAnalysis.config.PassThroughOnly {
 		s.collectMethodEdges(f, inst)
 	}
-	interfaceHierarchy := s.taintAnalysis.interfaceHierarchy
+	interfaceHierarchy := s.taintAnalysis.config.InterfaceHierarchy
 	tiface := inst.Call.Value.Type().Underlying().(*types.Interface)
 	methods := interfaceHierarchy.LookupMethods(tiface, f)
 	if len(methods) != 0 {
@@ -892,7 +912,7 @@ func (s *TaintSwitcher) passFuncParamTaint(signature *types.Signature, inst *ssa
 	if !s.taintAnalysis.config.PassThroughOnly {
 		s.collectSignatureEdges(signature, inst)
 	}
-	interfaceHierarchy := s.taintAnalysis.interfaceHierarchy
+	interfaceHierarchy := s.taintAnalysis.config.InterfaceHierarchy
 	funcs := interfaceHierarchy.LookupFuncs(signature)
 	if len(funcs) != 0 {
 		s.passStaticCallTaint(funcs[0], inst)
@@ -928,7 +948,7 @@ func (s *TaintSwitcher) passCopyTaint(inst *ssa.Call) {
 }
 
 func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
-	callGraph := s.taintAnalysis.callGraph
+	taintGraph := s.taintAnalysis.config.TaintGraph
 	if s.taintAnalysis.Graph.Func.Name() == "init" {
 		return
 	}
@@ -939,13 +959,13 @@ func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
 					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: i}
 					key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
 					key2 := f.String() + "#" + strconv.Itoa(i)
-					node := (*callGraph.Nodes)[key]
-					node2 := (*callGraph.Nodes)[key2]
+					node := (*taintGraph.Nodes)[key]
+					node2 := (*taintGraph.Nodes)[key2]
 					if node.IsIntra {
-						if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+						if _, ok := (*taintGraph.Edges)[key+"#"+key2]; ok {
 							continue
 						} else {
-							(*callGraph.Edges)[key+"#"+key2] = &edge
+							(*taintGraph.Edges)[key+"#"+key2] = &edge
 						}
 						node.Out = append(node.Out, &edge)
 						node2.In = append(node2.In, &edge)
@@ -961,7 +981,7 @@ func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
 func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 	signature, ok := f.Type().(*types.Signature)
 	ruler := s.taintAnalysis.ruler
-	callGraph := s.taintAnalysis.callGraph
+	taintGraph := s.taintAnalysis.config.TaintGraph
 	if ok {
 		for name := range *GetTaint(s.outMap, inst.Call.Value.Name()) {
 			for k, v := range s.taintAnalysis.Graph.Func.Params {
@@ -969,22 +989,22 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: 0}
 					key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
 					key2 := f.String() + "#" + strconv.Itoa(0)
-					node := (*callGraph.Nodes)[key]
+					node := (*taintGraph.Nodes)[key]
 					if node.IsIntra {
 						node.Out = append(node.Out, &edge)
-						if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+						if _, ok := (*taintGraph.Edges)[key+"#"+key2]; ok {
 							continue
 						} else {
-							(*callGraph.Edges)[key+"#"+key2] = &edge
+							(*taintGraph.Edges)[key+"#"+key2] = &edge
 						}
-						if node2, ok := (*callGraph.Nodes)[key2]; ok {
+						if node2, ok := (*taintGraph.Nodes)[key2]; ok {
 							node2.In = append(node2.In, &edge)
 							passProperty(node2, &edge)
 						} else {
 							node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: false, IsMethod: true, IsStatic: false}
 							decidePropertry(node2, ruler)
 							node2.In = append(node2.In, &edge)
-							(*callGraph.Nodes)[f.String()] = node2
+							(*taintGraph.Nodes)[f.String()] = node2
 							passProperty(node2, &edge)
 						}
 					}
@@ -999,22 +1019,22 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 						edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: i + 1}
 						key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
 						key2 := f.String() + "#" + strconv.Itoa(0)
-						node := (*callGraph.Nodes)[key]
+						node := (*taintGraph.Nodes)[key]
 						if node.IsIntra {
 							node.Out = append(node.Out, &edge)
-							if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+							if _, ok := (*taintGraph.Edges)[key+"#"+key2]; ok {
 								continue
 							} else {
-								(*callGraph.Edges)[key+"#"+key2] = &edge
+								(*taintGraph.Edges)[key+"#"+key2] = &edge
 							}
-							if node2, ok := (*callGraph.Nodes)[key2]; ok {
+							if node2, ok := (*taintGraph.Nodes)[key2]; ok {
 								node2.In = append(node2.In, &edge)
 								passProperty(node2, &edge)
 							} else {
 								node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: false, IsMethod: true, IsStatic: false}
 								decidePropertry(node2, ruler)
 								node2.In = append(node2.In, &edge)
-								(*callGraph.Nodes)[f.String()] = node2
+								(*taintGraph.Nodes)[f.String()] = node2
 								passProperty(node2, &edge)
 							}
 						}
@@ -1028,7 +1048,7 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 // collectSignatureEdges records node only use signature information
 func (s *TaintSwitcher) collectSignatureEdges(signature *types.Signature, inst *ssa.Call) {
 	ruler := s.taintAnalysis.ruler
-	callGraph := s.taintAnalysis.callGraph
+	taintGraph := s.taintAnalysis.config.TaintGraph
 	n := signature.Params().Len()
 	for i := 0; i < n; i++ {
 		for name := range *GetTaint(s.outMap, inst.Call.Args[i].Name()) {
@@ -1037,22 +1057,22 @@ func (s *TaintSwitcher) collectSignatureEdges(signature *types.Signature, inst *
 					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: signature.String(), ToIndex: i}
 					key := s.taintAnalysis.Graph.Func.String() + "#" + strconv.Itoa(k)
 					key2 := signature.String() + "#" + strconv.Itoa(0)
-					node := (*callGraph.Nodes)[key]
+					node := (*taintGraph.Nodes)[key]
 					if node.IsIntra {
 						node.Out = append(node.Out, &edge)
-						if _, ok := (*callGraph.Edges)[key+"#"+key2]; ok {
+						if _, ok := (*taintGraph.Edges)[key+"#"+key2]; ok {
 							continue
 						} else {
-							(*callGraph.Edges)[key+"#"+key2] = &edge
+							(*taintGraph.Edges)[key+"#"+key2] = &edge
 						}
-						if node2, ok := (*callGraph.Nodes)[key2]; ok {
+						if node2, ok := (*taintGraph.Nodes)[key2]; ok {
 							node2.In = append(node2.In, &edge)
 							passProperty(node2, &edge)
 						} else {
 							node2 := &Node{Canonical: signature.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0), IsSignature: true, IsMethod: false, IsStatic: false}
 							decidePropertry(node2, ruler)
 							node2.In = append(node2.In, &edge)
-							(*callGraph.Nodes)[signature.String()] = node2
+							(*taintGraph.Nodes)[signature.String()] = node2
 							passProperty(node2, &edge)
 						}
 					}
