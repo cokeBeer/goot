@@ -32,7 +32,7 @@ go get -u github.com/cokeBeer/goot
 ```
 
 ##  Use taint analysis
-Write code below in your project, e.g `cmd/taint/main.go`
+Write code below in the project to be analysed, e.g `cmd/taint/main.go`
 ```go
 package main
 
@@ -47,7 +47,7 @@ func main() {
 	// for this project, is "github.com/cokeBeer/goot"
 	runner.ModuleName = "module-name"
 	runner.PassThroughDstPath = "passthrough.json"
-	runner.CallGraphDstPath = "callgraph.json"
+	runner.TaintGraphDstPath = "taintgraph.json"
 	runner.Run()
 }
 ```
@@ -77,7 +77,7 @@ The rule is
 	]
 }
 ```
-Also, you will get a `callgraph.json` in the same directory\
+Also, you will get a `taintgraph.json` in the same directory\
 You can see the json file contains taint edges from one call parameter to another call parameter
 ```json
 {
