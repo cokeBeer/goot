@@ -72,8 +72,6 @@ func (r *Runner) Run() error {
 		FetchPassThrough(&passThroughContainter, r.PassThroughSrcPath)
 	}
 
-	passThroughContainter["github.com/cokeBeer/goot/pkg/bench/copy.Copy"] = [][]int{{0}, {0, 1}}
-
 	initMap := make(map[string]*ssa.Function)
 	history := make(map[string]bool)
 
