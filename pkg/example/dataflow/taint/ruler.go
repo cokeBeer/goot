@@ -136,21 +136,27 @@ func checkTrivalHandler(f *ssa.Function) bool {
 
 func checkBeegoHandler(f *ssa.Function) bool {
 	if f.Signature.Recv() != nil {
-		recv := f.Signature.Recv().Name()
-		if f.Pkg != nil {
-			if member, ok := f.Pkg.Members[recv]; ok {
-				if typ, ok := member.Type().Underlying().(*types.Struct); ok {
-					n := typ.NumFields()
-					for i := 0; i < n; i++ {
-						name := typ.Field(i).Type().String()
-						if name == "github.com/beego/beego/v2/server/web.Controller" {
-							return true
-						}
-						if name == "github.com/beego/beego/beego.Controller" {
-							return true
-						}
-						if name == "github.com/astaxie/beego/beego.Controller" {
-							return true
+		recv := f.Signature.Recv().Type()
+		if pointer, ok := recv.(*types.Pointer); ok {
+			recv = pointer.Elem()
+		}
+		if named, ok := recv.(*types.Named); ok {
+			name := named.Obj().Name()
+			if f.Pkg != nil {
+				if member, ok := f.Pkg.Members[name]; ok {
+					if typ, ok := member.Type().Underlying().(*types.Struct); ok {
+						n := typ.NumFields()
+						for i := 0; i < n; i++ {
+							field := typ.Field(i).Type().String()
+							if field == "github.com/beego/beego/v2/server/web.Controller" {
+								return true
+							}
+							if field == "github.com/beego/beego/beego.Controller" {
+								return true
+							}
+							if field == "github.com/astaxie/beego/beego.Controller" {
+								return true
+							}
 						}
 					}
 				}
