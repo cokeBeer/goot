@@ -82,7 +82,7 @@ init*.json
 callgraph.json
 passthrough.json
 additional.json
-
+taintgraph.json
 # BENCH FILE #
 ######################
 pkg/bench
