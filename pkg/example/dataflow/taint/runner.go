@@ -1,6 +1,8 @@
 package taint
 
 import (
+	"container/list"
+
 	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/packages"
@@ -97,7 +99,7 @@ func (r *Runner) Run() error {
 	}
 	taintGraph := NewTaintGraph(&funcs, ruler)
 
-	passThroughContainter := make(map[string][][]int)
+	passThroughContainter := make(map[string]*PassThroughCache)
 	if r.PassThroughSrcPath != nil {
 		FetchPassThrough(&passThroughContainter, r.PassThroughSrcPath)
 	}
@@ -108,8 +110,10 @@ func (r *Runner) Run() error {
 	c := &TaintConfig{PassThroughContainer: &passThroughContainter,
 		InitMap:            &initMap,
 		History:            &history,
+		CallStack:          list.New().Init(),
 		InterfaceHierarchy: interfaceHierarchy,
 		TaintGraph:         taintGraph,
+		UsePointerAnalysis: r.UsePointerAnalysis,
 		CallGraph:          callGraph,
 		Ruler:              ruler,
 		PassThroughOnly:    r.PassThroughOnly,
@@ -138,7 +142,7 @@ func (r *Runner) Run() error {
 		PersistPassThrough(&passThroughContainter, r.PassThroughDstPath)
 	}
 	if r.TaintGraphDstPath != "" {
-		PersistCallGraph(taintGraph.Edges, r.TaintGraphDstPath)
+		PersistTaintGraph(taintGraph.Edges, r.TaintGraphDstPath)
 	}
 	if !r.PassThroughOnly && r.PersistToNeo4j {
 		PersistToNeo4j(taintGraph.Nodes, taintGraph.Edges, r.Neo4jURI, r.Neo4jUsername, r.Neo4jPassword)

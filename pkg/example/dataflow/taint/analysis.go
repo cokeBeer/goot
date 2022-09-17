@@ -10,21 +10,15 @@ import (
 	"github.com/cokeBeer/goot/pkg/dataflow/toolkits/scalar"
 	"github.com/cokeBeer/goot/pkg/dataflow/toolkits/solver"
 	"github.com/cokeBeer/goot/pkg/dataflow/util/entry"
-	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
-	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
 )
 
 // TaintAnalysis represents a taint analysis
 type TaintAnalysis struct {
 	scalar.BaseFlowAnalysis
-	taintSwitcher        *TaintSwitcher
-	passThrough          []*TaintWrapper
-	config               *TaintConfig
-	passThroughContainer *map[string][][]int
-	initMap              *map[string]*ssa.Function
-	callGraph            *callgraph.Graph
-	ruler                rule.Ruler
+	taintSwitcher *TaintSwitcher
+	passThrough   *PassThrough
+	config        *TaintConfig
 }
 
 // Run kicks off a taint analysis on a function
@@ -50,7 +44,7 @@ func Run(f *ssa.Function, c *TaintConfig) {
 
 func doRun(f *ssa.Function, c *TaintConfig) {
 	// mark function as visited in history to inhibit recursive
-	pushHistory(f, c)
+	recordCall(f, c)
 
 	// create a new analysis
 	g := graph.New(f)
@@ -60,25 +54,26 @@ func doRun(f *ssa.Function, c *TaintConfig) {
 	solver.Solve(a, c.Debug)
 }
 
-func pushHistory(f *ssa.Function, c *TaintConfig) {
+func recordCall(f *ssa.Function, c *TaintConfig) {
 	(*c.History)[f.String()] = true
+	c.CallStack.PushBack(f)
 }
 
 func initNull(f *ssa.Function, c *TaintConfig) {
-	passThrough := make([][]int, 0)
 
 	// the function has no body or in recursive
 	// so init it by null passThrough
-	if f.Signature.Recv() != nil {
-		passThrough = append(passThrough, make([]int, 0))
+	names := make([]string, 0)
+	for _, param := range f.Params {
+		names = append(names, param.Name())
 	}
-
-	n := f.Signature.Results().Len()
-	for i := 0; i < n; i++ {
-		passThrough = append(passThrough, make([]int, 0))
-	}
-	(*c.PassThroughContainer)[f.String()] = passThrough
-	fmt.Println("finish analysis for:", f.String(), ", result: ", passThrough)
+	recv := f.Signature.Recv() != nil
+	result := f.Signature.Results().Len()
+	param := f.Signature.Params().Len()
+	passThrough := NewPassThrough(names, recv, result, param)
+	passThroughCache := passThrough.ToCache()
+	(*c.PassThroughContainer)[f.String()] = passThroughCache
+	fmt.Println("end analysis for:", f.String(), ", result: ", passThroughCache)
 }
 
 func needNull(f *ssa.Function, c *TaintConfig) bool {
@@ -89,6 +84,22 @@ func needNull(f *ssa.Function, c *TaintConfig) bool {
 
 	// is the function has marked as visited?
 	if _, ok := (*c.History)[f.String()]; ok {
+		caller := c.CallStack.Back().Value.(*ssa.Function)
+		IsCallerExported := false
+		IsCalleeExported := true
+		IsSamePackage := false
+		if caller.Object() != nil && caller.Object().Exported() {
+			IsCallerExported = true
+		}
+		if f.Object() != nil && !f.Object().Exported() {
+			IsCalleeExported = false
+		}
+		if caller.Pkg != nil && f.Pkg != nil && caller.Pkg.String() == f.Pkg.String() {
+			IsSamePackage = true
+		}
+		if IsCallerExported && !IsCalleeExported && IsSamePackage {
+			return false
+		}
 		return true
 	}
 	return false
@@ -102,28 +113,18 @@ func New(g *graph.UnitGraph, c *TaintConfig) *TaintAnalysis {
 	taintSwitcher.taintAnalysis = taintAnalysis
 	taintAnalysis.taintSwitcher = taintSwitcher
 	taintAnalysis.config = c
-	taintAnalysis.passThroughContainer = c.PassThroughContainer
-	taintAnalysis.initMap = c.InitMap
-	taintAnalysis.passThrough = make([]*TaintWrapper, 0)
-	taintAnalysis.ruler = c.Ruler
+
 	f := taintAnalysis.Graph.Func
-
-	// init param taints in passThrough
-	if f.Signature.Recv() != nil {
-		// if the function has a receiver, add a position for receiver's taint
-		recvMap := NewTaintWrapper(f.Params[0].Name())
-		taintAnalysis.passThrough = append(taintAnalysis.passThrough, recvMap)
+	names := make([]string, 0)
+	for _, v := range f.Params {
+		names = append(names, v.Name())
 	}
 
-	n := f.Signature.Results().Len()
-	for i := 0; i < n; i++ {
-		taintAnalysis.passThrough = append(taintAnalysis.passThrough, NewTaintWrapper())
-	}
+	recv := f.Signature.Recv() != nil
+	result := f.Signature.Results().Len()
+	param := f.Signature.Params().Len()
 
-	n = f.Signature.Params().Len()
-	for i := 0; i < n; i++ {
-		taintAnalysis.passThrough = append(taintAnalysis.passThrough, NewTaintWrapper())
-	}
+	taintAnalysis.passThrough = NewPassThrough(names, recv, result, param)
 	return taintAnalysis
 }
 
@@ -172,30 +173,23 @@ func (a *TaintAnalysis) MergeInto(unit ssa.Instruction, inout *map[any]any, in *
 // End handles result of analysis
 func (a *TaintAnalysis) End(universe []*entry.Entry) {
 	f := a.Graph.Func
+	c := a.config
 
-	if f.Signature.Recv() != nil {
+	if f.Signature.Recv() != nil && false {
 		// reset receiver's taint if it is a value receiver
 		switch a.Graph.Func.Signature.Recv().Type().(type) {
 		case *types.Named:
 			recv := NewTaintWrapper(a.Graph.Func.Params[0].Name())
-			a.passThrough[0] = recv
+			a.passThrough.Recv = recv
 		}
 	}
 
-	passThrough := make([][]int, 0)
-	params := f.Params
-	n := len(params)
-	for _, v := range a.passThrough {
-		singlePassThrough := make([]int, 0)
-		for i := 0; i < n; i++ {
-			// for every return value, checks its taints from which param, and records
-			if ok := v.HasTaint(params[i].Name()); ok {
-				singlePassThrough = append(singlePassThrough, i)
-			}
-		}
-		passThrough = append(passThrough, singlePassThrough)
-	}
 	// save passThrough to passThroughContainer
-	(*a.passThroughContainer)[f.String()] = passThrough
-	fmt.Println("end analysis for: "+f.String()+", result: ", passThrough)
+	passThroughCache := a.passThrough.ToCache()
+	(*c.PassThroughContainer)[f.String()] = passThroughCache
+
+	// pop callStack
+	c.CallStack.Remove(c.CallStack.Back())
+
+	fmt.Println("finish analysis for: "+f.String()+", result: ", passThroughCache)
 }

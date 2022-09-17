@@ -13,7 +13,7 @@ import (
 )
 
 // PersistPassThrough stores passthrough data to target destination
-func PersistPassThrough(passThroughContainer *map[string][][]int, dst string) error {
+func PersistPassThrough(passThroughContainer *map[string]*PassThroughCache, dst string) error {
 	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
@@ -27,8 +27,8 @@ func PersistPassThrough(passThroughContainer *map[string][][]int, dst string) er
 	return nil
 }
 
-// PersistCallGraph stores passthrough data to target destination
-func PersistCallGraph(edges *map[string]*Edge, dst string) error {
+// PersistTaintGraph stores taint edges to target destination
+func PersistTaintGraph(edges *map[string]*Edge, dst string) error {
 	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
@@ -90,9 +90,9 @@ func PersistToNeo4j(nodes *map[string]*Node, edges *map[string]*Edge, uri string
 }
 
 // FetchPassThrough loads passthrougth data from target source
-func FetchPassThrough(passThroughContainer *map[string][][]int, src []string) error {
+func FetchPassThrough(passThroughContainer *map[string]*PassThroughCache, src []string) error {
 	for _, path := range src {
-		tmp := make(map[string][][]int)
+		tmp := make(map[string]*PassThroughCache)
 		f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
 			return err

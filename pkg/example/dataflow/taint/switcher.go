@@ -33,10 +33,10 @@ func (s *TaintSwitcher) CaseBinOp(inst *ssa.BinOp) {
 func (s *TaintSwitcher) CaseCall(inst *ssa.Call) {
 	c := s.taintAnalysis.config
 	container := c.PassThroughContainer
-	init := s.taintAnalysis.initMap
+	init := s.taintAnalysis.config.InitMap
 	// try to use pointer analysis to select callee
 	callGraph := s.taintAnalysis.config.CallGraph
-	if callGraph != nil && inst.Common().StaticCallee() == nil {
+	if c.UsePointerAnalysis && inst.Common().StaticCallee() == nil {
 		node := callGraph.Nodes[inst.Parent()]
 		if node != nil {
 			for _, edge := range node.Out {
@@ -548,46 +548,29 @@ func (s *TaintSwitcher) CaseRange(inst *ssa.Range) {
 
 // CaseReturn accepts a Return instruction
 func (s *TaintSwitcher) CaseReturn(inst *ssa.Return) {
-	f := s.taintAnalysis.Graph.Func
-	if f.Signature.Recv() != nil {
+	passThrough := s.taintAnalysis.passThrough
+	if passThrough.HasRecv() {
 		// if the function has a receiver
-		recv := f.Params[0].Name()
+		recv := passThrough.RecvName()
 		for k := range *GetTaint(s.outMap, recv) {
 			// merge receiver's taint into passthrough
-			s.taintAnalysis.passThrough[0].AddTaint(k)
+			passThrough.Recv.AddTaint(k)
 		}
-		for i := 0; i < len(inst.Results); i++ {
-			result := inst.Results[i].Name()
-			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			for k := range *GetTaint(s.outMap, result) {
-				// merge other results' taint
-				s.taintAnalysis.passThrough[i+1].AddTaint(k)
-			}
+	}
+	for i := 0; i < passThrough.ResultNum(); i++ {
+		result := inst.Results[i].Name()
+		// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
+		for k := range *GetTaint(s.outMap, result) {
+			// merge other results' taint
+			passThrough.Results[i].AddTaint(k)
 		}
-		for i := 0; i < f.Signature.Params().Len(); i++ {
-			arg := f.Signature.Params().At(i).Name()
-			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			for k := range *GetTaint(s.outMap, arg) {
-				// merge args' taint
-				s.taintAnalysis.passThrough[len(inst.Results)+i+1].AddTaint(k)
-			}
-		}
-	} else {
-		for i := 0; i < len(inst.Results); i++ {
-			result := inst.Results[i].Name()
-			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			for k := range *GetTaint(s.outMap, result) {
-				// merge other results' taint
-				s.taintAnalysis.passThrough[i].AddTaint(k)
-			}
-		}
-		for i := 0; i < f.Signature.Params().Len(); i++ {
-			arg := f.Signature.Params().At(i).Name()
-			// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
-			for k := range *GetTaint(s.outMap, arg) {
-				// merge args' taint
-				s.taintAnalysis.passThrough[len(inst.Results)+i].AddTaint(k)
-			}
+	}
+	for i := 0; i < s.taintAnalysis.passThrough.ParamNum(); i++ {
+		arg := passThrough.ParamName(i)
+		// skip *ssa.Global, *ssa.FreeVar and *ssa.Const
+		for k := range *GetTaint(s.outMap, arg) {
+			// merge args' taint
+			passThrough.Params[i].AddTaint(k)
 		}
 	}
 }
@@ -620,7 +603,7 @@ func (s *TaintSwitcher) CaseStore(inst *ssa.Store) {
 	if _, ok := (inst.Addr).(*ssa.Global); ok {
 		// save global anonymous function to initMap
 		if f, ok := (inst.Val).(*ssa.Function); ok {
-			(*s.taintAnalysis.initMap)[inst.Addr.String()] = f
+			(*s.taintAnalysis.config.InitMap)[inst.Addr.String()] = f
 		}
 	}
 	// if inst.Addr points to struct or slice, update further
@@ -660,7 +643,7 @@ func (s *TaintSwitcher) passCallTaint(f *ssa.Function, inst *ssa.Call) {
 
 // passStaticCallTaint passes taint by a known *ssa.Function and a call
 func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
-	container := s.taintAnalysis.passThroughContainer
+	container := s.taintAnalysis.config.PassThroughContainer
 	c := s.taintAnalysis.config
 	_, ok := (*container)[f.String()]
 	if !ok {
@@ -680,68 +663,83 @@ func (s *TaintSwitcher) passStaticCallTaint(f *ssa.Function, inst *ssa.Call) {
 		Run(f, c)
 	}
 
-	passThrough := (*container)[f.String()]
-	n := len(passThrough)
-	newTaints := make([]*TaintWrapper, 0)
-	// for every results
-	for i := 0; i < n; i++ {
+	passThroughCache := (*container)[f.String()]
+	var newRecvTaint *TaintWrapper
+	newResultTaints := make([]*TaintWrapper, 0)
+	newParamTaints := make([]*TaintWrapper, 0)
+	if passThroughCache.HasRecv() {
 		newTaint := NewTaintWrapper()
 		// for every parameter index in passthrough, collect arg's taint
-		for _, p := range passThrough[i] {
+		for _, p := range passThroughCache.Recv {
 			newTaint.InheritTaint(s.outMap, inst.Call.Args[p].Name())
 		}
-		newTaints = append(newTaints, newTaint)
+		newRecvTaint = newTaint
 	}
-	for i := 0; i < n; i++ {
-		if f.Signature.Recv() != nil {
-			// if the function has a receiver
-			if i == 0 {
-				// update receiver's taint
-				// the receiver may be a pointer, so update further by the pointer
-				SetTaintWrapper(s.outMap, inst.Call.Args[0].Name(), newTaints[i])
-				if op, ok := (inst.Call.Args[0]).(*ssa.UnOp); ok {
-					PassTaint(s.outMap, op.X.Name(), op.Name())
-					s.passPointTaint(op.X)
-				} else {
-					s.passPointTaint(inst.Call.Args[0])
-				}
-			} else if i < 1+f.Signature.Results().Len() {
-				if f.Signature.Results().Len() == 1 {
-					// if the function has one result
-					SetTaintWrapper(s.outMap, inst.Name(), newTaints[i])
-				} else {
-					// else mark the variables as "inst.Name().X"
-					// e.g. t0.1, t0.2
-					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1), newTaints[i])
-				}
-			} else {
-				// update args' taint, use passPointTaint to pass back
-				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()].Name(), newTaints[i])
-				s.passPointTaint(inst.Call.Args[i-f.Signature.Results().Len()])
-			}
-		} else {
-			// if the function has no receiver
-			if i < f.Signature.Results().Len() {
-				if f.Signature.Results().Len() == 1 {
-					// if the function has one result
-					SetTaintWrapper(s.outMap, inst.Name(), newTaints[i])
-				} else {
-					// else mark the variables as "inst.Name().X"
-					// e.g. t0.1, t0.2
-					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i), newTaints[i])
-				}
-			} else {
-				// update args' taint, use passPointTaint to pass back
-				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()].Name(), newTaints[i])
-				s.passPointTaint(inst.Call.Args[i-f.Signature.Results().Len()])
-			}
+	for _, result := range passThroughCache.Results {
+		newTaint := NewTaintWrapper()
+		// for every parameter index in passthrough, collect arg's taint
+		for _, p := range result {
+			newTaint.InheritTaint(s.outMap, inst.Call.Args[p].Name())
 		}
+		newResultTaints = append(newResultTaints, newTaint)
+	}
+	for _, param := range passThroughCache.Params {
+		newTaint := NewTaintWrapper()
+		// for every parameter index in passthrough, collect arg's taint
+		for _, p := range param {
+			newTaint.InheritTaint(s.outMap, inst.Call.Args[p].Name())
+		}
+		newParamTaints = append(newParamTaints, newTaint)
+	}
+	if passThroughCache.HasRecv() {
+		// update receiver's taint
+		// the receiver may be a pointer, so update further by the pointer
+		SetTaintWrapper(s.outMap, inst.Call.Args[0].Name(), newRecvTaint)
+		if op, ok := (inst.Call.Args[0]).(*ssa.UnOp); ok {
+			PassTaint(s.outMap, op.X.Name(), op.Name())
+			s.passPointTaint(op.X)
+		} else {
+			s.passPointTaint(inst.Call.Args[0])
+		}
+	}
+	for i := 0; i < passThroughCache.ResultNum(); i++ {
+		if passThroughCache.ResultNum() == 1 {
+			// if the function has one result
+			SetTaintWrapper(s.outMap, inst.Name(), newResultTaints[i])
+		} else {
+			// else mark the variables as "inst.Name().X"
+			// e.g. t0.1, t0.2
+			SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i), newResultTaints[i])
+		}
+	}
+	for i := 0; i < passThroughCache.ParamNum(); i++ {
+		var recv int
+		if passThroughCache.HasRecv() {
+			recv = 1
+		} else {
+			recv = 0
+		}
+		// update args' taint, use passPointTaint to pass back
+		SetTaintWrapper(s.outMap, inst.Call.Args[recv+i].Name(), newParamTaints[i])
+		s.passPointTaint(inst.Call.Args[recv+i])
 	}
 }
 
 // passPointTaint passes taint by pointer
 func (s *TaintSwitcher) passPointTaint(pointer ssa.Value) {
 	switch addr := (pointer).(type) {
+	case *ssa.Alloc:
+		for _, _inst := range *addr.Referrers() {
+			switch inst := _inst.(type) {
+			case *ssa.Store:
+				PassTaint(s.outMap, inst.Val.Name(), addr.Name())
+				s.passBackCallTaint(inst.Val)
+			}
+		}
+	case *ssa.Convert:
+		// if addr is a *ssa.Convert, try use its addr.X to update further
+		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+		s.passPointTaint(addr.X)
 	case *ssa.TypeAssert:
 		// if addr is a *ssa.TypeAssert, try use its addr.X to update further
 		PassTaint(s.outMap, addr.X.Name(), addr.Name())
@@ -773,6 +771,17 @@ func (s *TaintSwitcher) passPointTaint(pointer ssa.Value) {
 	case *ssa.Slice:
 		// if addr is a *ssa.Slice, update underlying array
 		PassTaint(s.outMap, addr.X.Name(), addr.Name())
+	}
+}
+
+// passBackCallTaint trys to pass back call taint from results to args
+func (s *TaintSwitcher) passBackCallTaint(_call ssa.Value) {
+	if call, ok := _call.(*ssa.Call); ok {
+		for _, arg := range call.Call.Args {
+			if _, ok := arg.(*ssa.Parameter); ok {
+				PassTaint(s.outMap, arg.Name(), call.Name())
+			}
+		}
 	}
 }
 
@@ -812,7 +821,7 @@ func (s *TaintSwitcher) passInvokeTaint(f *types.Func, inst *ssa.Call) {
 
 // passMethodTaint passes taint by *ssa.Function and an invoke
 func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
-	container := s.taintAnalysis.passThroughContainer
+	container := s.taintAnalysis.config.PassThroughContainer
 	c := s.taintAnalysis.config
 	_, ok := (*container)[f.String()]
 	if !ok {
@@ -828,86 +837,101 @@ func (s *TaintSwitcher) passMethodTaint(f *ssa.Function, inst *ssa.Call) {
 		Run(f, c)
 	}
 
-	passThrough := (*container)[f.String()]
-	n := len(passThrough)
-	newTaints := make([]*TaintWrapper, 0)
-	for i := 0; i < n; i++ {
-		newTaint := NewTaintWrapper()
+	passThroughCache := (*container)[f.String()]
+	var newRecvTaint *TaintWrapper
+	newResultTaints := make([]*TaintWrapper, 0)
+	newParamTaints := make([]*TaintWrapper, 0)
+	if passThroughCache.HasRecv() {
 		// for every parameter index in passthrough, collect arg's taint
-		for _, p := range passThrough[i] {
+		for _, p := range passThroughCache.Recv {
+			newTaint := NewTaintWrapper()
 			if p == 0 {
 				// the first arg is inst.Call.Value
 				newTaint.InheritTaint(s.outMap, inst.Call.Value.Name())
 			} else {
 				// other args are in inst.Call.Args
 				newTaint.InheritTaint(s.outMap, inst.Call.Args[p-1].Name())
-
 			}
+			newRecvTaint = newTaint
 		}
-		newTaints = append(newTaints, newTaint)
 	}
-	for i := 0; i < n; i++ {
-		if i == 0 {
-			// update receiver's taint
-			// the receiver may be a pointer, so update further by the pointer
-			SetTaintWrapper(s.outMap, inst.Call.Value.Name(), newTaints[i])
-			if op, ok := (inst.Call.Value).(*ssa.UnOp); ok {
-				PassTaint(s.outMap, op.X.Name(), op.Name())
-				s.passPointTaint(op.X)
+	for _, result := range passThroughCache.Results {
+		newTaint := NewTaintWrapper()
+		// for every parameter index in passthrough, collect arg's taint
+		for _, p := range result {
+			if p == 0 {
+				// the first arg is inst.Call.Value
+				newTaint.InheritTaint(s.outMap, inst.Call.Value.Name())
 			} else {
-				s.passPointTaint(inst.Call.Value)
-			}
-		} else {
-			if i < 1+f.Signature.Results().Len() {
-				if f.Signature.Results().Len() == 1 {
-					// if the function has one result
-					SetTaintWrapper(s.outMap, inst.Name(), newTaints[i])
-				} else {
-					// else mark the variables as "inst.Name().X"
-					// e.g. t0.1, t0.2
-					SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1), newTaints[i])
-				}
-			} else {
-				// update args' taint
-				SetTaintWrapper(s.outMap, inst.Call.Args[i-f.Signature.Results().Len()-1].Name(), newTaints[i])
+				// other args are in inst.Call.Args
+				newTaint.InheritTaint(s.outMap, inst.Call.Args[p-1].Name())
 			}
 		}
+		newResultTaints = append(newResultTaints, newTaint)
+	}
+	for _, param := range passThroughCache.Params {
+		newTaint := NewTaintWrapper()
+		// for every parameter index in passthrough, collect arg's taint
+		for _, p := range param {
+			if p == 0 {
+				// the first arg is inst.Call.Value
+				newTaint.InheritTaint(s.outMap, inst.Call.Value.Name())
+			} else {
+				// other args are in inst.Call.Args
+				newTaint.InheritTaint(s.outMap, inst.Call.Args[p-1].Name())
+			}
+		}
+		newParamTaints = append(newParamTaints, newTaint)
+	}
+	if passThroughCache.HasRecv() {
+		// update receiver's taint
+		// the receiver may be a pointer, so update further by the pointer
+		SetTaintWrapper(s.outMap, inst.Call.Value.Name(), newRecvTaint)
+		if op, ok := (inst.Call.Value).(*ssa.UnOp); ok {
+			PassTaint(s.outMap, op.X.Name(), op.Name())
+			s.passPointTaint(op.X)
+		} else {
+			s.passPointTaint(inst.Call.Value)
+		}
+	}
+	for i := 0; i < passThroughCache.ResultNum(); i++ {
+		if passThroughCache.ResultNum() == 1 {
+			// if the function has one result
+			SetTaintWrapper(s.outMap, inst.Name(), newResultTaints[i])
+		} else {
+			// else mark the variables as "inst.Name().X"
+			// e.g. t0.1, t0.2
+			SetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i), newResultTaints[i])
+		}
+	}
+	for i := 0; i < passThroughCache.ParamNum(); i++ {
+		// update args' taint
+		SetTaintWrapper(s.outMap, inst.Call.Args[i].Name(), newParamTaints[i])
 	}
 }
 
 // passNullTaint passes taint when we can't know a declared function's body or have to inhibit recursive
 // actually no taint will be passed
+// note that this may lose some taint but help analysis keep working
 func (s *TaintSwitcher) passNullTaint(f *types.Func, inst *ssa.Call) {
-	container := s.taintAnalysis.passThroughContainer
 	signature, ok := f.Type().(*types.Signature)
 	if ok {
-		passThrough := make([][]int, 0)
-		if signature.Recv() != nil {
-			passThrough = append(passThrough, make([]int, 0))
+		recv := signature.Recv() != nil
+		result := signature.Results().Len()
+		param := signature.Params().Len()
+		//(*container)[f.String()] = NewPassThroughCache(recv, result, param)
+		if recv {
+			// do nothing because we don't need to update recv
 		}
-		n := signature.Results().Len()
-		for i := 0; i < n; i++ {
-			passThrough = append(passThrough, make([]int, 0))
-		}
-		(*container)[f.String()] = passThrough
-		n = len(passThrough)
-		for i := 0; i < n; i++ {
-			if signature.Recv() != nil {
-				if i == 0 {
-				} else {
-					if n == 2 {
-						GetTaintWrapper(s.outMap, inst.Name())
-					} else {
-						GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i-1))
-					}
-				}
+		for i := 0; i < result; i++ {
+			if result == 1 {
+				GetTaintWrapper(s.outMap, inst.Name())
 			} else {
-				if n == 1 {
-					GetTaintWrapper(s.outMap, inst.Name())
-				} else {
-					GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i))
-				}
+				GetTaintWrapper(s.outMap, inst.Name()+"."+strconv.Itoa(i))
 			}
+		}
+		for i := 0; i < param; i++ {
+			// do nothing because we don't need to update params
 		}
 	}
 }
@@ -986,7 +1010,7 @@ func (s *TaintSwitcher) collectCallEdges(f *ssa.Function, inst *ssa.Call) {
 // collectMethodsEdges records node only use type information
 func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 	signature, ok := f.Type().(*types.Signature)
-	ruler := s.taintAnalysis.ruler
+	ruler := s.taintAnalysis.config.Ruler
 	taintGraph := s.taintAnalysis.config.TaintGraph
 	if ok {
 		for name := range *GetTaint(s.outMap, inst.Call.Value.Name()) {
@@ -1053,7 +1077,7 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 
 // collectSignatureEdges records node only use signature information
 func (s *TaintSwitcher) collectSignatureEdges(signature *types.Signature, inst *ssa.Call) {
-	ruler := s.taintAnalysis.ruler
+	ruler := s.taintAnalysis.config.Ruler
 	taintGraph := s.taintAnalysis.config.TaintGraph
 	n := signature.Params().Len()
 	for i := 0; i < n; i++ {

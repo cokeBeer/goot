@@ -1,6 +1,8 @@
 package taint
 
 import (
+	"container/list"
+
 	"github.com/cokeBeer/goot/pkg/example/dataflow/taint/rule"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
@@ -8,11 +10,13 @@ import (
 
 // TaintConfig represents a configuration for taint analysis
 type TaintConfig struct {
-	PassThroughContainer *map[string][][]int
+	PassThroughContainer *map[string]*PassThroughCache
 	InitMap              *map[string]*ssa.Function
 	History              *map[string]bool
+	CallStack            *list.List
 	InterfaceHierarchy   *InterfaceHierarchy
 	TaintGraph           *TaintGraph
+	UsePointerAnalysis   bool
 	CallGraph            *callgraph.Graph
 	Ruler                rule.Ruler
 	PassThroughOnly      bool
