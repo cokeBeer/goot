@@ -113,6 +113,9 @@ func (r *DummyRuler) IsSource(_f any) bool {
 			flag := false
 			f := node.Function
 			flag = flag || checkTrivalHandler(f) || checkBeegoHandler(f) || checkGinHandler(f)
+			if flag {
+				return true
+			}
 		}
 	}
 	return false
