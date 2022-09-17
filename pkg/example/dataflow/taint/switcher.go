@@ -1014,6 +1014,7 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 	taintGraph := s.taintAnalysis.config.TaintGraph
 	if ok {
 		for name := range *GetTaint(s.outMap, inst.Call.Value.Name()) {
+			// contruct taint edge from receiver to arg
 			for k, v := range s.taintAnalysis.Graph.Func.Params {
 				if v.Name() == name {
 					edge := Edge{From: s.taintAnalysis.Graph.Func.String(), FromIndex: k, To: f.String(), ToIndex: 0}
@@ -1043,6 +1044,7 @@ func (s *TaintSwitcher) collectMethodEdges(f *types.Func, inst *ssa.Call) {
 		}
 		n := signature.Params().Len()
 		for i := 0; i < n; i++ {
+			// contruct taint edge from param to arg
 			for name := range *GetTaint(s.outMap, inst.Call.Args[i].Name()) {
 				for k, v := range s.taintAnalysis.Graph.Func.Params {
 					if v.Name() == name {

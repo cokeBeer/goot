@@ -1,5 +1,6 @@
 package taint
 
+// NoMainPkgError represents a no main package error
 type NoMainPkgError struct {
 }
 

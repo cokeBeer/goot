@@ -1,5 +1,6 @@
 package taint
 
+// PassThrough represents a passthrough
 type PassThrough struct {
 	Names   []string
 	Recv    *TaintWrapper
@@ -7,12 +8,14 @@ type PassThrough struct {
 	Params  []*TaintWrapper
 }
 
+// PassThroughCache represents a passthrough cache
 type PassThroughCache struct {
 	Recv    []int
 	Results [][]int
 	Params  [][]int
 }
 
+// NewPassThrough return a PassThrough
 func NewPassThrough(names []string, recv bool, result int, param int) *PassThrough {
 	passThrough := new(PassThrough)
 	passThrough.Names = names
@@ -36,6 +39,7 @@ func NewPassThrough(names []string, recv bool, result int, param int) *PassThrou
 	return passThrough
 }
 
+// ToCache tranforms a passthrough to a passthrough cache
 func (p *PassThrough) ToCache() *PassThroughCache {
 	passThroughCache := NewPassThroughCache(false, 0, 0)
 	n := len(p.Names)
@@ -74,6 +78,7 @@ func (p *PassThrough) ToCache() *PassThroughCache {
 	return passThroughCache
 }
 
+// RecvName returns the receiver's name
 func (p *PassThrough) RecvName() string {
 	if p.HasRecv() {
 		return p.Names[0]
@@ -81,6 +86,7 @@ func (p *PassThrough) RecvName() string {
 	return ""
 }
 
+// ParamName returns the i'th param's name
 func (p *PassThrough) ParamName(i int) string {
 	if p.HasRecv() {
 		return p.Names[i+1]
@@ -88,18 +94,22 @@ func (p *PassThrough) ParamName(i int) string {
 	return p.Names[i]
 }
 
+// HasRecv returns whether the function has a receiver
 func (p *PassThrough) HasRecv() bool {
 	return p.Recv != nil
 }
 
+// ResultNum returns number of results
 func (p *PassThrough) ResultNum() int {
 	return len(p.Results)
 }
 
+// ParamNum returns number of params
 func (p *PassThrough) ParamNum() int {
 	return len(p.Params)
 }
 
+// NewPassThroughCache returns a PassThroughCache
 func NewPassThroughCache(recv bool, result int, param int) *PassThroughCache {
 	passThroughCache := new(PassThroughCache)
 	passThroughCache.Results = make([][]int, 0)
@@ -116,14 +126,17 @@ func NewPassThroughCache(recv bool, result int, param int) *PassThroughCache {
 	return passThroughCache
 }
 
+// HasRecv returns whether the function has a receiver
 func (c *PassThroughCache) HasRecv() bool {
 	return c.Recv != nil
 }
 
+// ResultNum returns number of results
 func (c *PassThroughCache) ResultNum() int {
 	return len(c.Results)
 }
 
+// ParamNum returns number of params
 func (c *PassThroughCache) ParamNum() int {
 	return len(c.Params)
 }

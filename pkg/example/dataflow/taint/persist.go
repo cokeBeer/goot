@@ -42,6 +42,7 @@ func PersistTaintGraph(edges *map[string]*Edge, dst string) error {
 	return nil
 }
 
+// PersistToNeo4j stores taint edges to neo4j database
 func PersistToNeo4j(nodes *map[string]*Node, edges *map[string]*Edge, uri string, username string, password string) {
 	driver, err := neo4j.NewDriver(uri, neo4j.BasicAuth(username, password, ""))
 	if err != nil {
