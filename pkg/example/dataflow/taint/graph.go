@@ -21,9 +21,6 @@ func NewTaintGraph(allFuncs *map[*ssa.Function]bool, ruler rule.Ruler) *TaintGra
 	callGraph.Nodes = &nodes
 	callGraph.Edges = &edges
 	for f := range *allFuncs {
-		if f.String() != "(*github.com/cokeBeer/goot/pkg/bench/beego.xyzController).Get" {
-			continue
-		}
 		if f.Signature.Recv() != nil {
 			node := &Node{Function: f, Canonical: f.String(), Index: 0, Out: make([]*Edge, 0), In: make([]*Edge, 0)}
 			decidePropertry(node, ruler)
