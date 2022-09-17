@@ -52,14 +52,19 @@ func main() {
 }
 ```
 Run the code, and you will get a `passthrough.json` in the same directory, which contains taint passthrough information of all functions in your project\
-You can see key `fmt.Sprintf` holds the value `[[0,1],[0],[1]]`
+You can see key `fmt.Sprintf` holds a value object 
 ```json
 {
-    "fmt.Sprintf": [
-        [0, 1], # return value's taint
-	[0],    # first parameter's taint
-	[1]	# second parameter's taint
-    ]
+    "fmt.Sprintf": {
+        "Recv": null,
+        "Results": [
+            [0, 1]
+        ],
+        "Params": [
+            [0, 1],
+            [1]
+        ]
+    }
 }
 ```
 This means three things
@@ -67,16 +72,6 @@ This means three things
 - the first parameter receives the first parameter's taint
 - the second parameter receives the second parameter's taint
 
-The rule is 
-```json
-{
-	"function name": [ 
-		["receiver taint"], # 0 or 1
-		["result taint"],   # 0 or many
-		["param taint"]     # 0 or many
-	]
-}
-```
 Also, you will get a `taintgraph.json` in the same directory\
 You can see the json file contains taint edges from one call parameter to another call parameter
 ```json
