@@ -91,4 +91,5 @@ pkg/bench
 ######################
 pkg/pta
 cmd/pointer
+cmd/dump
 knowledge
