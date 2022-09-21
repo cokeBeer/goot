@@ -189,3 +189,4 @@ You can learn more information about **how to use goot as a framework** and **ho
 
 - [soot](https://github.com/soot-oss/soot)
 - [Tai-e](https://github.com/pascal-lab/Tai-e)
+- [tabby](https://github.com/wh1t3p1g/tabby)
