@@ -66,6 +66,10 @@ func (r *DummyRuler) IsSink(_f any) bool {
 	sink["(*database/sql.Tx).QueryContext"] = true
 	sink["(*database/sql.Tx).QueryRow"] = true
 	sink["(*database/sql.Tx).QueryRowContext"] = true
+	sink["(*github.com/jmoiron/sqlx.DB).Select"] = true
+	sink["(*github.com/jmoiron/sqlx.DB).Get"] = true
+	sink["(*github.com/jmoiron/sqlx.DB).Queryx"] = true
+	sink["(*github.com/jmoiron/sqlx.DB).QueryRowx"] = true
 	sink["(*gorm.io/gorm.DB).Raw"] = true
 	sink["(*gorm.io/gorm.DB).Where"] = true
 	sink["(*gorm.io/gorm.DB).Or"] = true
